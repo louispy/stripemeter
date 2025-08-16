@@ -34,7 +34,7 @@ export default function Layout({ children }: LayoutProps) {
         <div className="flex h-16 items-center px-6 border-b">
           <div className="flex items-center space-x-2">
             <Activity className="h-8 w-8 text-blue-600" />
-            <span className="text-xl font-bold text-gray-900">Stripeflex</span>
+            <span className="text-xl font-bold text-gray-900">Stripemeter</span>
           </div>
         </div>
         

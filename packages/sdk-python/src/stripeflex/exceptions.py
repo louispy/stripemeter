@@ -1,12 +1,12 @@
 """
-Stripeflex exceptions
+Stripemeter exceptions
 """
 
 from typing import Optional, Any
 
 
-class StripeflexError(Exception):
-    """Base exception for Stripeflex SDK"""
+class StripemeterError(Exception):
+    """Base exception for Stripemeter SDK"""
     
     def __init__(
         self,
@@ -21,5 +21,5 @@ class StripeflexError(Exception):
     
     def __str__(self):
         if self.status_code:
-            return f"StripeflexError({self.status_code}): {self.message}"
-        return f"StripeflexError: {self.message}"
+            return f"StripemeterError({self.status_code}): {self.message}"
+        return f"StripemeterError: {self.message}"

@@ -19,7 +19,7 @@ export const logger = pino({
       }
     : undefined,
   base: {
-    service: 'stripeflex-workers',
+    service: 'stripemeter-workers',
     env: process.env.NODE_ENV,
   },
 });

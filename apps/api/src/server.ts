@@ -51,7 +51,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   await server.register(swagger, {
     swagger: {
       info: {
-        title: 'Stripeflex API',
+        title: 'Stripemeter API',
         description: 'Stripe-native usage metering and cost experience API',
         version: '1.0.0',
       },

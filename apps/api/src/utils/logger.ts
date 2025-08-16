@@ -32,7 +32,7 @@ export const logger = pino({
     }),
   },
   base: {
-    service: 'stripeflex-api',
+    service: 'stripemeter-api',
     env: process.env.NODE_ENV,
   },
 });

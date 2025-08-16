@@ -1,16 +1,16 @@
 """
-Stripeflex Python SDK
+Stripemeter Python SDK
 """
 
-from .client import StripeflexClient, AsyncStripeflexClient
-from .exceptions import StripeflexError
+from .client import StripemeterClient, AsyncStripemeterClient
+from .exceptions import StripemeterError
 from .models import UsageEvent, IngestResponse, UsageResponse, ProjectionResponse
 
 __version__ = "1.0.0"
 __all__ = [
-    "StripeflexClient",
-    "AsyncStripeflexClient",
-    "StripeflexError",
+    "StripemeterClient",
+    "AsyncStripemeterClient",
+    "StripemeterError",
     "UsageEvent",
     "IngestResponse",
     "UsageResponse",

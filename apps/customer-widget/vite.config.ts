@@ -18,8 +18,8 @@ export default defineConfig({
     sourcemap: true,
     lib: {
       entry: path.resolve(__dirname, 'src/widget.tsx'),
-      name: 'StripeflexWidget',
-      fileName: (format) => `stripeflex-widget.${format}.js`,
+      name: 'StripemeterWidget',
+      fileName: (format) => `stripemeter-widget.${format}.js`,
       formats: ['umd', 'es'],
     },
     rollupOptions: {

@@ -1,5 +1,5 @@
 /**
- * Stripeflex API Server Entry Point
+ * Stripemeter API Server Entry Point
  */
 
 import 'dotenv/config';
@@ -15,7 +15,7 @@ const start = async () => {
     
     await server.listen({ port, host });
     
-    logger.info(`🚀 Stripeflex API server running at http://${host}:${port}`);
+    logger.info(`🚀 Stripemeter API server running at http://${host}:${port}`);
     logger.info(`📚 API documentation available at http://${host}:${port}/docs`);
     
     // Graceful shutdown

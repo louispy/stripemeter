@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Stripeflex Customer Widget Demo</title>
+    <title>Stripemeter Customer Widget Demo</title>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <style>
@@ -47,7 +47,7 @@
   <body>
     <div class="demo-container">
       <div class="demo-header">
-        <h1>Stripeflex Customer Widget</h1>
+        <h1>Stripemeter Customer Widget</h1>
         <p>Embeddable usage and billing widget for your customers</p>
       </div>
 
@@ -67,15 +67,15 @@
         <p>Add the widget to your application:</p>
         <pre class="code-block">
 &lt;!-- Include the widget script --&gt;
-&lt;script src="https://cdn.stripeflex.io/widget/v1/stripeflex-widget.umd.js"&gt;&lt;/script&gt;
+&lt;script src="https://cdn.stripemeter.io/widget/v1/stripemeter-widget.umd.js"&gt;&lt;/script&gt;
 
 &lt;!-- Create a container --&gt;
-&lt;div id="stripeflex-widget"&gt;&lt;/div&gt;
+&lt;div id="stripemeter-widget"&gt;&lt;/div&gt;
 
 &lt;!-- Initialize the widget --&gt;
 &lt;script&gt;
-  StripeflexWidget.initStripeflexWidget('stripeflex-widget', {
-    apiUrl: 'https://api.stripeflex.io',
+  StripemeterWidget.initStripemeterWidget('stripemeter-widget', {
+    apiUrl: 'https://api.stripemeter.io',
     tenantId: 'your-tenant-id',
     customerId: 'your-customer-id',
     apiKey: 'your-api-key', // optional
@@ -91,9 +91,9 @@
     <script>
       // Demo initialization
       setTimeout(() => {
-        if (window.StripeflexWidget) {
+        if (window.StripemeterWidget) {
           // Normal widget
-          window.StripeflexWidget.initStripeflexWidget('widget-normal', {
+          window.StripemeterWidget.initStripemeterWidget('widget-normal', {
             apiUrl: 'http://localhost:3000',
             tenantId: '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
             customerId: 'cus_ABC123',
@@ -102,7 +102,7 @@
           });
 
           // Compact widget
-          window.StripeflexWidget.initStripeflexWidget('widget-compact', {
+          window.StripemeterWidget.initStripemeterWidget('widget-compact', {
             apiUrl: 'http://localhost:3000',
             tenantId: '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
             customerId: 'cus_ABC123',

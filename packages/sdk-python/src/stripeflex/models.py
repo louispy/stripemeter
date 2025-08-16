@@ -1,5 +1,5 @@
 """
-Stripeflex data models
+Stripemeter data models
 """
 
 from typing import Dict, List, Optional, Any

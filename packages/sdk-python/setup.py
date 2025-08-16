@@ -1,5 +1,5 @@
 """
-Stripeflex Python SDK Setup
+Stripemeter Python SDK Setup
 """
 
 from setuptools import setup, find_packages
@@ -8,14 +8,14 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setup(
-    name="stripeflex",
+    name="stripemeter",
     version="1.0.0",
-    author="Stripeflex",
-    author_email="support@stripeflex.io",
-    description="Python SDK for Stripeflex usage metering",
+    author="Stripemeter",
+    author_email="support@stripemeter.io",
+    description="Python SDK for Stripemeter usage metering",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/stripeflex/stripeflex-python",
+    url="https://github.com/stripemeter/stripemeter-python",
     packages=find_packages(where="src"),
     package_dir={"": "src"},
     classifiers=[

@@ -8,7 +8,7 @@ export default function Settings() {
         <SettingsIcon className="h-6 w-6 text-blue-600" />
         <div>
           <h2 className="text-xl font-semibold text-gray-900">Settings</h2>
-          <p className="text-sm text-gray-500">Configure your Stripeflex instance</p>
+          <p className="text-sm text-gray-500">Configure your Stripemeter instance</p>
         </div>
       </div>
 

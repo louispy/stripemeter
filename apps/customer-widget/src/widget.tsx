@@ -261,7 +261,7 @@ function UsageWidget({
       <div className="flex items-center justify-between text-xs text-gray-500 pt-4 border-t">
         <div className="flex items-center">
           <Shield className="h-3 w-3 mr-1" />
-          <span>Powered by Stripeflex</span>
+          <span>Powered by Stripemeter</span>
         </div>
         <div className="flex items-center">
           <Zap className="h-3 w-3 mr-1" />
@@ -273,7 +273,7 @@ function UsageWidget({
 }
 
 // Widget initialization function
-export function initStripeflexWidget(containerId: string, props: WidgetProps) {
+export function initStripemeterWidget(containerId: string, props: WidgetProps) {
   const container = document.getElementById(containerId);
   if (!container) {
     console.error(`Container with id "${containerId}" not found`);
@@ -301,7 +301,7 @@ export function initStripeflexWidget(containerId: string, props: WidgetProps) {
 
 // For development
 if (typeof window !== 'undefined') {
-  (window as any).StripeflexWidget = { initStripeflexWidget };
+  (window as any).StripemeterWidget = { initStripemeterWidget };
 }
 
 export default UsageWidget;

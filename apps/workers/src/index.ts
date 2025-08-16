@@ -11,7 +11,7 @@ import { AlertMonitorWorker } from './workers/alert-monitor';
 import { redis } from '@stripemeter/database';
 
 async function start() {
-  logger.info('🚀 Starting Stripeflex workers...');
+  logger.info('🚀 Starting Stripemeter workers...');
 
   try {
     // Initialize workers

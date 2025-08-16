@@ -3,10 +3,6 @@
   "version": "1.0.0",
   "description": "Stripe-native usage metering and cost experience platform",
   "private": true,
-  "workspaces": [
-    "packages/*",
-    "apps/*"
-  ],
   "scripts": {
     "dev": "pnpm run --parallel --filter './packages/*' --filter './apps/*' dev",
     "build": "pnpm run --filter './packages/*' --filter './apps/*' build",

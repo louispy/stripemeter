@@ -1,5 +1,5 @@
 """
-Stripeflex Python Client
+Stripemeter Python Client
 """
 
 import hashlib
@@ -15,11 +15,11 @@ import backoff
 from pydantic import BaseModel, Field
 
 from .models import UsageEvent, IngestResponse, UsageResponse, ProjectionResponse
-from .exceptions import StripeflexError
+from .exceptions import StripemeterError
 
 
-class StripeflexClient:
-    """Synchronous Stripeflex client"""
+class StripemeterClient:
+    """Synchronous Stripemeter client"""
     
     def __init__(
         self,
@@ -42,7 +42,7 @@ class StripeflexClient:
         self.session = requests.Session()
         self.session.headers.update({
             "Content-Type": "application/json",
-            "User-Agent": "Stripeflex-Python/1.0.0",
+            "User-Agent": "Stripemeter-Python/1.0.0",
         })
         if api_key:
             self.session.headers["Authorization"] = f"Bearer {api_key}"
@@ -74,10 +74,10 @@ class StripeflexClient:
     
     @backoff.on_exception(
         backoff.expo,
-        (requests.exceptions.RequestException, StripeflexError),
+        (requests.exceptions.RequestException, StripemeterError),
         max_tries=3,
         max_time=30,
-        giveup=lambda e: isinstance(e, StripeflexError) and 400 <= e.status_code < 500,
+        giveup=lambda e: isinstance(e, StripemeterError) and 400 <= e.status_code < 500,
     )
     def _make_request(
         self,
@@ -105,13 +105,13 @@ class StripeflexClient:
                 error_data = e.response.json()
             except:
                 pass
-            raise StripeflexError(
+            raise StripemeterError(
                 message=error_data.get("message", str(e)),
                 status_code=e.response.status_code,
                 data=error_data,
             )
         except requests.exceptions.RequestException as e:
-            raise StripeflexError(
+            raise StripemeterError(
                 message=str(e),
                 status_code=0,
                 data=None,
@@ -302,8 +302,8 @@ class StripeflexClient:
         self.session.close()
 
 
-class AsyncStripeflexClient:
-    """Asynchronous Stripeflex client using asyncio"""
+class AsyncStripemeterClient:
+    """Asynchronous Stripemeter client using asyncio"""
     
     def __init__(
         self,
@@ -324,7 +324,7 @@ class AsyncStripeflexClient:
         self.flush_task: Optional[asyncio.Task] = None
         
         # Note: In production, you'd use aiohttp instead
-        self.sync_client = StripeflexClient(
+        self.sync_client = StripemeterClient(
             api_url=api_url,
             tenant_id=tenant_id,
             api_key=api_key,

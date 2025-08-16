@@ -1,5 +1,5 @@
 /**
- * Core type definitions for Stripeflex
+ * Core type definitions for Stripemeter
  */
 
 export type TenantID = string;

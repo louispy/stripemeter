@@ -1,5 +1,5 @@
 /**
- * Stripeflex Node.js SDK
+ * Stripemeter Node.js SDK
  */
 
 import axios, { AxiosInstance, AxiosError } from 'axios';
@@ -13,7 +13,7 @@ import {
   type IngestEventRequestInput,
 } from '@stripemeter/core';
 
-export interface StripeflexConfig {
+export interface StripemeterConfig {
   apiUrl: string;
   apiKey?: string;
   tenantId: string;
@@ -22,13 +22,13 @@ export interface StripeflexConfig {
   batchSize?: number;
 }
 
-export class StripeflexClient {
+export class StripemeterClient {
   private client: AxiosInstance;
-  private config: Required<StripeflexConfig>;
+  private config: Required<StripemeterConfig>;
   private eventBuffer: UsageEvent[] = [];
   private flushTimer: NodeJS.Timeout | null = null;
 
-  constructor(config: StripeflexConfig) {
+  constructor(config: StripemeterConfig) {
     this.config = {
       apiUrl: config.apiUrl.replace(/\/$/, ''), // Remove trailing slash
       apiKey: config.apiKey || '',
@@ -54,11 +54,11 @@ export class StripeflexClient {
         if (error.response) {
           const { status, data } = error.response;
           const message = data?.message || data?.error || `Request failed with status ${status}`;
-          throw new StripeflexError(message, status, data);
+          throw new StripemeterError(message, status, data);
         } else if (error.request) {
-          throw new StripeflexError('No response from server', 0, null);
+          throw new StripemeterError('No response from server', 0, null);
         } else {
-          throw new StripeflexError(error.message, 0, null);
+          throw new StripemeterError(error.message, 0, null);
         }
       }
     );
@@ -243,24 +243,24 @@ export class StripeflexClient {
 }
 
 /**
- * Custom error class for Stripeflex SDK
+ * Custom error class for Stripemeter SDK
  */
-export class StripeflexError extends Error {
+export class StripemeterError extends Error {
   constructor(
     message: string,
     public statusCode: number,
     public data: any
   ) {
     super(message);
-    this.name = 'StripeflexError';
+    this.name = 'StripemeterError';
   }
 }
 
 /**
  * Helper function to create a client instance
  */
-export function createClient(config: StripeflexConfig): StripeflexClient {
-  return new StripeflexClient(config);
+export function createClient(config: StripemeterConfig): StripemeterClient {
+  return new StripemeterClient(config);
 }
 
 // Re-export types from core

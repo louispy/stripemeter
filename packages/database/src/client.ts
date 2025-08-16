@@ -8,7 +8,7 @@ import Redis from 'ioredis';
 import * as schema from './schema';
 
 // PostgreSQL client
-const connectionString = process.env.DATABASE_URL || 'postgresql://stripeflex:stripeflex_dev@localhost:5432/stripeflex';
+const connectionString = process.env.DATABASE_URL || 'postgresql://stripemeter:stripemeter_dev@localhost:5432/stripemeter';
 const sql = postgres(connectionString, {
   max: 10, // connection pool size
   idle_timeout: 20,

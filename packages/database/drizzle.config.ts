@@ -8,7 +8,7 @@ export default {
   out: './migrations',
   driver: 'pg',
   dbCredentials: {
-    connectionString: process.env.DATABASE_URL || 'postgresql://stripeflex:stripeflex_dev@localhost:5432/stripeflex',
+    connectionString: process.env.DATABASE_URL || 'postgresql://stripemeter:stripemeter_dev@localhost:5432/stripemeter',
   },
   verbose: true,
   strict: true,

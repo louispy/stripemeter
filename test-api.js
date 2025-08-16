@@ -10,7 +10,7 @@ const API_BASE_URL = 'http://localhost:3000';
 
 async function testAPI() {
   try {
-    console.log('🧪 Testing Stripeflex API...\n');
+    console.log('🧪 Testing Stripemeter API...\n');
 
     // Test health endpoint
     console.log('1. Testing health endpoint...');
