@@ -112,6 +112,24 @@ That's it! The setup script will:
 - **Admin Dashboard**: `http://localhost:3001`
 - **Customer Widget Demo**: `http://localhost:3002`
 
+### Try the Interactive Demo
+
+Experience StripeMeter in action with our realistic SaaS demo:
+
+```bash
+cd demo/cloudapi-saas
+./demo-start.sh
+```
+
+The demo showcases:
+- **Real-time usage tracking** with live cost updates
+- **Multiple pricing tiers** (Free, Pro, Enterprise)
+- **Interactive API testing** with immediate billing feedback
+- **Usage simulation tools** for different traffic patterns
+- **Complete billing transparency** that customers love
+
+Perfect for understanding how StripeMeter integrates with your SaaS application!
+
 ## Core Concepts
 
 ### Events (Immutable Ledger)
