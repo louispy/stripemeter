@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloudAPI - Customer Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .usage-bar {
+            transition: width 0.3s ease-in-out;
+        }
+        .cost-update {
+            animation: pulse 0.5s ease-in-out;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center py-4">
+                <div class="flex items-center">
+                    <h1 class="text-2xl font-bold text-gray-900">CloudAPI</h1>
+                    <span class="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">Demo</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <select id="userSelect" class="border border-gray-300 rounded-md px-3 py-2 text-sm">
+                        <option value="demo_free_alice_12345">Alice (Free Plan)</option>
+                        <option value="demo_pro_bob_67890">Bob (Pro Plan)</option>
+                        <option value="demo_ent_carol_abcdef">Carol (Enterprise)</option>
+                    </select>
+                    <div class="text-sm text-gray-500" id="lastUpdated">Last updated: --</div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- User Info Card -->
+        <div class="bg-white rounded-lg shadow-sm border p-6 mb-8">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-900" id="userName">Loading...</h2>
+                    <p class="text-gray-600" id="userEmail">--</p>
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 mt-2" id="userPlan">
+                        -- Plan
+                    </span>
+                </div>
+                <div class="text-right">
+                    <div class="text-2xl font-bold text-gray-900" id="currentCost">$0.00</div>
+                    <div class="text-sm text-gray-500">Current month cost</div>
+                    <div class="text-lg font-semibold text-blue-600 mt-1" id="projectedCost">$0.00 projected</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Usage Overview -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <!-- API Calls -->
+            <div class="bg-white rounded-lg shadow-sm border p-6">
+                <div class="flex items-center">
+                    <div class="flex-1">
+                        <h3 class="text-sm font-medium text-gray-500">API Calls</h3>
+                        <div class="mt-1 flex items-baseline">
+                            <div class="text-2xl font-semibold text-gray-900" id="apiCallsUsed">0</div>
+                            <div class="ml-2 text-sm text-gray-500">/ <span id="apiCallsLimit">0</span></div>
+                        </div>
+                    </div>
+                    <div class="ml-4">
+                        <div class="w-16 h-16 relative">
+                            <svg class="w-16 h-16 transform -rotate-90" viewBox="0 0 36 36">
+                                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#E5E7EB" stroke-width="3"/>
+                                <path id="apiCallsProgress" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#3B82F6" stroke-width="3" stroke-dasharray="0, 100"/>
+                            </svg>
+                            <div class="absolute inset-0 flex items-center justify-center">
+                                <span class="text-xs font-medium text-gray-600" id="apiCallsPercent">0%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <div class="bg-gray-200 rounded-full h-2">
+                        <div class="bg-blue-500 h-2 rounded-full usage-bar" id="apiCallsBar" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data Processed -->
+            <div class="bg-white rounded-lg shadow-sm border p-6">
+                <div class="flex items-center">
+                    <div class="flex-1">
+                        <h3 class="text-sm font-medium text-gray-500">Data Processed</h3>
+                        <div class="mt-1 flex items-baseline">
+                            <div class="text-2xl font-semibold text-gray-900" id="dataUsed">0</div>
+                            <div class="ml-2 text-sm text-gray-500">MB / <span id="dataLimit">0</span> MB</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <div class="bg-gray-200 rounded-full h-2">
+                        <div class="bg-green-500 h-2 rounded-full usage-bar" id="dataBar" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Compute Time -->
+            <div class="bg-white rounded-lg shadow-sm border p-6">
+                <div class="flex items-center">
+                    <div class="flex-1">
+                        <h3 class="text-sm font-medium text-gray-500">Compute Time</h3>
+                        <div class="mt-1 flex items-baseline">
+                            <div class="text-2xl font-semibold text-gray-900" id="computeUsed">0</div>
+                            <div class="ml-2 text-sm text-gray-500">min / <span id="computeLimit">0</span> min</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <div class="bg-gray-200 rounded-full h-2">
+                        <div class="bg-purple-500 h-2 rounded-full usage-bar" id="computeBar" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Storage -->
+            <div class="bg-white rounded-lg shadow-sm border p-6">
+                <div class="flex items-center">
+                    <div class="flex-1">
+                        <h3 class="text-sm font-medium text-gray-500">Storage</h3>
+                        <div class="mt-1 flex items-baseline">
+                            <div class="text-2xl font-semibold text-gray-900" id="storageUsed">0</div>
+                            <div class="ml-2 text-sm text-gray-500">MB / <span id="storageLimit">0</span> MB</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <div class="bg-gray-200 rounded-full h-2">
+                        <div class="bg-yellow-500 h-2 rounded-full usage-bar" id="storageBar" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- API Testing Panel -->
+        <div class="bg-white rounded-lg shadow-sm border p-6 mb-8">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">API Testing & Live Usage</h3>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div>
+                    <h4 class="font-medium text-gray-900 mb-3">Test API Endpoints</h4>
+                    <div class="space-y-3">
+                        <button onclick="makeAPICall('/api/data/123')" class="w-full text-left p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                            <div class="font-medium">GET /api/data/123</div>
+                            <div class="text-sm text-gray-500">Retrieve sample data</div>
+                        </button>
+                        <button onclick="makeAPICall('/api/process', 'POST')" class="w-full text-left p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                            <div class="font-medium">POST /api/process</div>
+                            <div class="text-sm text-gray-500">Process data transformation</div>
+                        </button>
+                        <button onclick="makeAPICall('/api/bulk', 'POST')" class="w-full text-left p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                            <div class="font-medium">POST /api/bulk</div>
+                            <div class="text-sm text-gray-500">Bulk operations (5 API calls)</div>
+                        </button>
+                    </div>
+                    
+                    <div class="mt-6">
+                        <h4 class="font-medium text-gray-900 mb-3">Usage Simulation</h4>
+                        <div class="flex space-x-2">
+                            <button onclick="simulateUsage('steady')" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">Steady</button>
+                            <button onclick="simulateUsage('burst')" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">Burst</button>
+                            <button onclick="simulateUsage('random')" class="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors">Random</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div>
+                    <h4 class="font-medium text-gray-900 mb-3">API Response</h4>
+                    <div class="bg-gray-50 rounded-lg p-4 h-64 overflow-y-auto">
+                        <pre id="apiResponse" class="text-sm text-gray-700 whitespace-pre-wrap">Click an API endpoint to see the response...</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Billing Transparency -->
+        <div class="bg-white rounded-lg shadow-sm border p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Billing Transparency</h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Metric</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Usage</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Included</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Overage</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cost</th>
+                        </tr>
+                    </thead>
+                    <tbody id="billingBreakdown" class="bg-white divide-y divide-gray-200">
+                        <!-- Will be populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let currentUser = 'demo_free_alice_12345';
+        let userData = {};
+        
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('userSelect').addEventListener('change', function(e) {
+                currentUser = e.target.value;
+                loadUserData();
+            });
+            
+            loadUserData();
+            setInterval(loadUserData, 5000); // Refresh every 5 seconds
+        });
+
+        async function loadUserData() {
+            try {
+                const response = await fetch('http://localhost:4000/api/user', {
+                    headers: {
+                        'X-API-Key': currentUser
+                    }
+                });
+                
+                if (response.ok) {
+                    userData = await response.json();
+                    updateDashboard();
+                } else {
+                    console.error('Failed to load user data:', response.statusText);
+                }
+            } catch (error) {
+                console.error('Error loading user data:', error);
+                // Use mock data for demo
+                userData = getMockUserData();
+                updateDashboard();
+            }
+            
+            document.getElementById('lastUpdated').textContent = 
+                'Last updated: ' + new Date().toLocaleTimeString();
+        }
+
+        function updateDashboard() {
+            const { user, usage, projection, plan } = userData;
+            
+            // Update user info
+            document.getElementById('userName').textContent = user.name;
+            document.getElementById('userEmail').textContent = user.email;
+            document.getElementById('userPlan').textContent = plan.name;
+            
+            // Update costs
+            document.getElementById('currentCost').textContent = 
+                '$' + (projection.cost.current || 0).toFixed(2);
+            document.getElementById('projectedCost').textContent = 
+                '$' + (projection.cost.projected || 0).toFixed(2) + ' projected';
+            
+            // Update usage metrics
+            usage.metrics.forEach(metric => {
+                updateUsageMetric(metric);
+            });
+            
+            // Update billing breakdown
+            updateBillingBreakdown(projection.cost.breakdown || []);
+        }
+
+        function updateUsageMetric(metric) {
+            const percentage = metric.limit > 0 ? (metric.current / metric.limit) * 100 : 0;
+            
+            switch (metric.metric) {
+                case 'api_calls':
+                    document.getElementById('apiCallsUsed').textContent = metric.current.toLocaleString();
+                    document.getElementById('apiCallsLimit').textContent = metric.limit.toLocaleString();
+                    document.getElementById('apiCallsBar').style.width = Math.min(percentage, 100) + '%';
+                    document.getElementById('apiCallsPercent').textContent = Math.round(percentage) + '%';
+                    document.getElementById('apiCallsProgress').style.strokeDasharray = percentage + ', 100';
+                    break;
+                case 'data_processed':
+                    document.getElementById('dataUsed').textContent = metric.current;
+                    document.getElementById('dataLimit').textContent = metric.limit;
+                    document.getElementById('dataBar').style.width = Math.min(percentage, 100) + '%';
+                    break;
+                case 'compute_time':
+                    const currentMin = Math.round(metric.current / 1000 / 60);
+                    const limitMin = Math.round(metric.limit / 1000 / 60);
+                    document.getElementById('computeUsed').textContent = currentMin;
+                    document.getElementById('computeLimit').textContent = limitMin;
+                    document.getElementById('computeBar').style.width = Math.min(percentage, 100) + '%';
+                    break;
+                case 'storage':
+                    document.getElementById('storageUsed').textContent = metric.current;
+                    document.getElementById('storageLimit').textContent = metric.limit;
+                    document.getElementById('storageBar').style.width = Math.min(percentage, 100) + '%';
+                    break;
+            }
+        }
+
+        function updateBillingBreakdown(breakdown) {
+            const tbody = document.getElementById('billingBreakdown');
+            tbody.innerHTML = breakdown.map(item => `
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${item.metric.replace('_', ' ')}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.usage.toLocaleString()}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.included || 0}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.overage || 0}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">$${item.cost.toFixed(2)}</td>
+                </tr>
+            `).join('');
+        }
+
+        async function makeAPICall(endpoint, method = 'GET') {
+            try {
+                const options = {
+                    method,
+                    headers: {
+                        'X-API-Key': currentUser,
+                        'Content-Type': 'application/json'
+                    }
+                };
+                
+                if (method === 'POST') {
+                    if (endpoint === '/api/process') {
+                        options.body = JSON.stringify({
+                            data: { sample: 'data', timestamp: Date.now() },
+                            operation: 'transform'
+                        });
+                    } else if (endpoint === '/api/bulk') {
+                        options.body = JSON.stringify({
+                            items: Array.from({length: 5}, (_, i) => ({id: i, data: `item_${i}`})),
+                            operation: 'bulk_process'
+                        });
+                    }
+                }
+                
+                const response = await fetch('http://localhost:4000' + endpoint, options);
+                const data = await response.json();
+                
+                document.getElementById('apiResponse').textContent = JSON.stringify(data, null, 2);
+                
+                // Refresh usage data after API call
+                setTimeout(loadUserData, 1000);
+                
+            } catch (error) {
+                document.getElementById('apiResponse').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function simulateUsage(pattern) {
+            try {
+                const response = await fetch('http://localhost:4000/api/demo/simulate-usage', {
+                    method: 'POST',
+                    headers: {
+                        'X-API-Key': currentUser,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        pattern,
+                        duration: 30,
+                        intensity: 'medium'
+                    })
+                });
+                
+                const data = await response.json();
+                document.getElementById('apiResponse').textContent = 
+                    `Simulation started: ${data.pattern} pattern for ${data.duration}s\nEstimated ${data.estimated_calls} API calls`;
+                
+            } catch (error) {
+                document.getElementById('apiResponse').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        function getMockUserData() {
+            const mockUsers = {
+                'demo_free_alice_12345': {
+                    user: { name: 'Alice Johnson', email: 'alice@startup.com', plan: 'free' },
+                    usage: {
+                        metrics: [
+                            { metric: 'api_calls', current: 847, limit: 1000 },
+                            { metric: 'data_processed', current: 23, limit: 100 },
+                            { metric: 'compute_time', current: 12450, limit: 60000 },
+                            { metric: 'storage', current: 15, limit: 100 }
+                        ]
+                    },
+                    projection: {
+                        cost: { current: 0, projected: 2.40, breakdown: [
+                            { metric: 'api_calls', usage: 1120, cost: 2.40, included: 1000, overage: 120 }
+                        ]}
+                    },
+                    plan: { name: 'Free Plan' }
+                }
+            };
+            
+            return mockUsers[currentUser] || mockUsers['demo_free_alice_12345'];
+        }
+    </script>
+</body>
+</html>

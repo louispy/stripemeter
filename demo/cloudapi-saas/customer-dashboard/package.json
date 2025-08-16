@@ -1,0 +1,12 @@
+{
+  "name": "cloudapi-customer-dashboard",
+  "version": "1.0.0",
+  "description": "Customer Dashboard for CloudAPI Demo",
+  "scripts": {
+    "start": "python3 -m http.server 3001",
+    "dev": "python3 -m http.server 3001"
+  },
+  "keywords": ["stripemeter", "demo", "customer-dashboard"],
+  "author": "StripeMeter Team",
+  "license": "MIT"
+}
