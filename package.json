@@ -1,0 +1,35 @@
+{
+  "name": "stripemeter",
+  "version": "1.0.0",
+  "description": "Stripe-native usage metering and cost experience platform",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "pnpm run --parallel --filter './packages/*' --filter './apps/*' dev",
+    "build": "pnpm run --filter './packages/*' --filter './apps/*' build",
+    "test": "pnpm run --filter './packages/*' --filter './apps/*' test",
+    "lint": "pnpm run --filter './packages/*' --filter './apps/*' lint",
+    "clean": "pnpm run --filter './packages/*' --filter './apps/*' clean",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "db:migrate": "pnpm --filter @stripemeter/database migrate",
+    "db:seed": "pnpm --filter @stripemeter/database seed"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3",
+    "prettier": "^3.2.4",
+    "eslint": "^8.56.0",
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "@typescript-eslint/parser": "^6.19.0",
+    "vitest": "^1.2.1"
+  },
+  "packageManager": "pnpm@8.15.1",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}

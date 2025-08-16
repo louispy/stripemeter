@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.base.json",
+  "references": [
+    { "path": "./packages/core" },
+    { "path": "./packages/database" },
+    { "path": "./packages/pricing-lib" },
+    { "path": "./packages/sdk-node" },
+    { "path": "./apps/api" },
+    { "path": "./apps/workers" },
+    { "path": "./apps/admin-ui" },
+    { "path": "./apps/customer-widget" }
+  ]
+}
