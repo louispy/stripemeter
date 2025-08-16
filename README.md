@@ -1,4 +1,4 @@
-# 🚀 StripeMeter
+# StripeMeter
 
 > **The open-source usage metering platform that eliminates billing surprises**
 
@@ -9,17 +9,17 @@
 
 **StripeMeter** is a production-ready, Stripe-native usage metering system that brings transparency and trust to SaaS billing. Built by developers, for developers who believe customers deserve to see exactly what they're paying for.
 
-## ✨ Why StripeMeter?
+## Why StripeMeter?
 
-- 🎯 **Eliminate Bill Shock**: Real-time usage tracking with live cost projections
-- 🔒 **Exactly-Once Guarantee**: Never double-bill customers with idempotent processing
-- 📊 **Invoice Parity**: What customers see = what Stripe bills (guaranteed within 0.5%)
-- ⚡ **Lightning Fast**: Sub-minute freshness with horizontal scaling
-- 🛡️ **Battle-Tested**: Built for production with comprehensive error handling
-- 🎨 **Beautiful UIs**: Admin dashboard + embeddable customer widgets
-- 🔧 **Developer First**: Full-featured SDKs for Node.js and Python
+- **Eliminate Bill Shock**: Real-time usage tracking with live cost projections
+- **Exactly-Once Guarantee**: Never double-bill customers with idempotent processing
+- **Invoice Parity**: What customers see = what Stripe bills (guaranteed within 0.5%)
+- **Lightning Fast**: Sub-minute freshness with horizontal scaling
+- **Battle-Tested**: Built for production with comprehensive error handling
+- **Beautiful UIs**: Admin dashboard + embeddable customer widgets
+- **Developer First**: Full-featured SDKs for Node.js and Python
 
-## 🌟 What Makes StripeMeter Special
+## What Makes StripeMeter Special
 
 Unlike other billing solutions, StripeMeter is designed around three core principles:
 
@@ -27,7 +27,7 @@ Unlike other billing solutions, StripeMeter is designed around three core princi
 2. **Developer Experience**: Building usage-based pricing should be delightful
 3. **Community Driven**: Built by the community, for the community
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 ┌─────────────┐     ┌──────────┐     ┌──────────────┐
@@ -55,7 +55,7 @@ Unlike other billing solutions, StripeMeter is designed around three core princi
                     └──────────┘     └──────────┘    └──────────┘
 ```
 
-## 📦 Project Structure
+## Project Structure
 
 ```
 stripemeter/
@@ -73,9 +73,9 @@ stripemeter/
 └── infra/             # Infrastructure configs
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
-> **Get StripeMeter running in under 5 minutes!**
+**Get StripeMeter running in under 5 minutes**
 
 ### One-Command Setup
 
@@ -86,11 +86,11 @@ cd stripemeter && ./scripts/setup.sh
 ```
 
 That's it! The setup script will:
-- ✅ Check prerequisites (Node.js 20+, pnpm, Docker)
-- ✅ Install dependencies
-- ✅ Start infrastructure services
-- ✅ Run database migrations
-- ✅ Create example configuration
+- Check prerequisites (Node.js 20+, pnpm, Docker)
+- Install dependencies
+- Start infrastructure services
+- Run database migrations
+- Create example configuration
 
 ### Manual Setup (if you prefer)
 
@@ -106,13 +106,13 @@ That's it! The setup script will:
 
 </details>
 
-### 🎉 You're Ready!
+### You're Ready!
 
-- 📡 **API**: `http://localhost:3000` (with Swagger docs at `/docs`)
-- 🎛️ **Admin Dashboard**: `http://localhost:3001`
-- 🎨 **Customer Widget Demo**: `http://localhost:3002`
+- **API**: `http://localhost:3000` (with Swagger docs at `/docs`)
+- **Admin Dashboard**: `http://localhost:3001`
+- **Customer Widget Demo**: `http://localhost:3002`
 
-## 📊 Core Concepts
+## Core Concepts
 
 ### Events (Immutable Ledger)
 Every usage event is stored with a deterministic idempotency key. Events are never deleted or modified - corrections are made through adjustments.
@@ -129,7 +129,7 @@ The writer tracks `pushed_total` per subscription item and only sends the delta 
 ### Reconciliation (Trust but Verify)
 Hourly comparison of local totals vs Stripe reported usage. Differences beyond epsilon (0.5%) trigger investigation and suggested adjustments.
 
-## 💻 Usage Examples
+## Usage Examples
 
 ### Track Usage with SDKs
 
@@ -231,20 +231,20 @@ curl -X POST http://localhost:3000/v1/usage/projection \
 </script>
 ```
 
-## 🤝 Contributing
+## Contributing
 
-**We ❤️ contributions!** StripeMeter is built by the community, for the community.
+StripeMeter is built by the community, for the community.
 
-### 🌟 Ways to Contribute
+### Ways to Contribute
 
-- 🐛 **Found a bug?** [Open an issue](https://github.com/stripemeter/stripemeter/issues/new?template=bug_report.md)
-- 💡 **Have an idea?** [Start a discussion](https://github.com/stripemeter/stripemeter/discussions)
-- 📖 **Improve docs** - Even fixing typos helps!
-- 🧪 **Add tests** - Help us improve reliability
-- 🎨 **Design improvements** - Make StripeMeter more beautiful
-- 🚀 **New features** - Check our [roadmap](https://github.com/stripemeter/stripemeter/projects)
+- **Found a bug?** [Open an issue](https://github.com/stripemeter/stripemeter/issues/new?template=bug_report.md)
+- **Have an idea?** [Start a discussion](https://github.com/stripemeter/stripemeter/discussions)
+- **Improve docs** - Even fixing typos helps!
+- **Add tests** - Help us improve reliability
+- **Design improvements** - Make StripeMeter more beautiful
+- **New features** - Check our [roadmap](https://github.com/stripemeter/stripemeter/projects)
 
-### 🚀 Quick Contribution Guide
+### Quick Contribution Guide
 
 1. **Fork the repo** and create your branch: `git checkout -b my-amazing-feature`
 2. **Make your changes** and add tests if needed
@@ -252,23 +252,23 @@ curl -X POST http://localhost:3000/v1/usage/projection \
 4. **Commit with a clear message**: `git commit -m "Add amazing feature"`
 5. **Push and create a PR** - we'll review it quickly!
 
-### 🏆 Recognition
+### Recognition
 
 All contributors get:
-- 🎉 Recognition in our [contributors page](https://github.com/stripemeter/stripemeter/graphs/contributors)
-- 🏅 Special Discord role in our [community server](https://discord.gg/stripemeter)
-- 📧 Early access to new features and updates
+- Recognition in our [contributors page](https://github.com/stripemeter/stripemeter/graphs/contributors)
+- Special Discord role in our [community server](https://discord.gg/stripemeter)
+- Early access to new features and updates
 
-## 🌍 Community
+## Community
 
 Join thousands of developers building the future of usage-based billing:
 
-- 💬 **[Discord Community](https://discord.gg/stripemeter)** - Chat with other developers
-- 🐦 **[Twitter](https://twitter.com/stripemeter)** - Follow for updates
-- 📰 **[Blog](https://blog.stripemeter.io)** - Deep dives and tutorials
-- 📧 **[Newsletter](https://newsletter.stripemeter.io)** - Monthly updates
+- **[Discord Community](https://discord.gg/stripemeter)** - Chat with other developers
+- **[Twitter](https://twitter.com/stripemeter)** - Follow for updates
+- **[Blog](https://blog.stripemeter.io)** - Deep dives and tutorials
+- **[Newsletter](https://newsletter.stripemeter.io)** - Monthly updates
 
-## 🧪 Testing & Quality
+## Testing & Quality
 
 We maintain high code quality standards:
 
@@ -288,7 +288,7 @@ pnpm test:e2e
 
 **Coverage**: We aim for >90% test coverage on core components.
 
-## 🚢 Deployment
+## Deployment
 
 ### One-Click Deploy
 
@@ -315,13 +315,13 @@ kubectl apply -k infra/k8s/
 helm install stripemeter ./charts/stripemeter
 ```
 
-## 📊 Performance & Monitoring
+## Performance & Monitoring
 
 **Production SLOs**:
-- 🚀 Ingest latency p99 ≤ 200ms
-- ⚡ Projection staleness ≤ 60s
-- 🎯 Reconciliation accuracy ≥ 99.5%
-- 🛡️ Uptime ≥ 99.9%
+- Ingest latency p99 ≤ 200ms
+- Projection staleness ≤ 60s
+- Reconciliation accuracy ≥ 99.5%
+- Uptime ≥ 99.9%
 
 **Built-in Observability**:
 - Prometheus metrics
@@ -329,15 +329,15 @@ helm install stripemeter ./charts/stripemeter
 - Distributed tracing
 - Health check endpoints
 
-## 🔒 Security & Compliance
+## Security & Compliance
 
-- 🔐 **Zero PCI scope** - No card data stored
-- 🛡️ **Multi-tenant isolation** - Complete data separation
-- 📋 **SOC 2 ready** - Comprehensive audit trails
-- 🔑 **RBAC support** - Role-based access control
-- 🚨 **Security scanning** - Automated vulnerability detection
+- **Zero PCI scope** - No card data stored
+- **Multi-tenant isolation** - Complete data separation
+- **SOC 2 ready** - Comprehensive audit trails
+- **RBAC support** - Role-based access control
+- **Security scanning** - Automated vulnerability detection
 
-## 🗺️ Roadmap
+## Roadmap
 
 **Coming Soon**:
 - [ ] GraphQL API
@@ -354,11 +354,11 @@ helm install stripemeter ./charts/stripemeter
 
 [View full roadmap →](https://github.com/stripemeter/stripemeter/projects/1)
 
-## 📄 License
+## License
 
 StripeMeter is [MIT licensed](./LICENSE). Use it, modify it, distribute it - we believe in open source!
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 Built with ❤️ by the open-source community. Special thanks to:
 
@@ -370,9 +370,9 @@ Built with ❤️ by the open-source community. Special thanks to:
 
 <div align="center">
 
-**⭐ If StripeMeter helps your business, please give us a star!**
+**If StripeMeter helps your business, please give us a star!**
 
-[⭐ Star on GitHub](https://github.com/stripemeter/stripemeter) • [📖 Documentation](https://docs.stripemeter.io) • [💬 Community](https://discord.gg/stripemeter)
+[Star on GitHub](https://github.com/stripemeter/stripemeter) • [Documentation](https://docs.stripemeter.io) • [Community](https://discord.gg/stripemeter)
 
 Made with ❤️ by developers who believe in billing transparency
 
