@@ -270,22 +270,6 @@ StripeMeter is built by the community, for the community.
 4. **Commit with a clear message**: `git commit -m "Add amazing feature"`
 5. **Push and create a PR** - we'll review it quickly!
 
-### Recognition
-
-All contributors get:
-- Recognition in our [contributors page](https://github.com/stripemeter/stripemeter/graphs/contributors)
-- Special Discord role in our [community server](https://discord.gg/stripemeter)
-- Early access to new features and updates
-
-## Community
-
-Join thousands of developers building the future of usage-based billing:
-
-- **[Discord Community](https://discord.gg/stripemeter)** - Chat with other developers
-- **[Twitter](https://twitter.com/stripemeter)** - Follow for updates
-- **[Blog](https://blog.stripemeter.io)** - Deep dives and tutorials
-- **[Newsletter](https://newsletter.stripemeter.io)** - Monthly updates
-
 ## Testing & Quality
 
 We maintain high code quality standards:
@@ -303,8 +287,6 @@ pnpm lint
 # End-to-end tests
 pnpm test:e2e
 ```
-
-**Coverage**: We aim for >90% test coverage on core components.
 
 ## Deployment
 
@@ -365,13 +347,6 @@ helm install stripemeter ./charts/stripemeter
 - [ ] Multi-currency support
 - [ ] Audit log exports
 
-**Future**:
-- [ ] Machine learning usage predictions
-- [ ] Advanced fraud detection
-- [ ] Enterprise SSO integration
-
-[View full roadmap →](https://github.com/stripemeter/stripemeter/projects/1)
-
 ## License
 
 StripeMeter is [MIT licensed](./LICENSE). Use it, modify it, distribute it - we believe in open source!
@@ -382,8 +357,6 @@ Built with ❤️ by the open-source community. Special thanks to:
 
 - [Stripe](https://stripe.com) for the amazing payments platform
 - All our [contributors](https://github.com/stripemeter/stripemeter/graphs/contributors)
-- The broader usage-based billing community
-
 ---
 
 <div align="center">
