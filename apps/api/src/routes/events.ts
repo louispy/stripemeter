@@ -167,15 +167,13 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
         }
       }
 
-      // Add jobs to queue
+      // Add jobs to queue with stable jobId for deduplication
       const jobs = Array.from(aggregationJobs.values()).map(job => ({
         name: 'aggregate-counter',
         data: job,
         opts: {
           delay: 1000, // Small delay to batch events
-          deduplication: {
-            id: `${job.tenantId}:${job.metric}:${job.customerRef}:${job.periodStart}`,
-          },
+          jobId: `${job.tenantId}:${job.metric}:${job.customerRef}:${job.periodStart}`,
         },
       }));
 
