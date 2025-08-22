@@ -339,14 +339,38 @@ helm install stripemeter ./charts/stripemeter
 
 ## Roadmap
 
-**Coming Soon**:
-- [ ] GraphQL API
-- [ ] Slack/Teams integrations
-- [ ] Advanced analytics dashboard
-- [ ] Custom pricing models
-- [ ] Multi-currency support
-- [ ] Audit log exports
+### Foundations (in progress)
 
+- [ ] Deterministic idempotency across core/SDKs/writer
+- [ ] BullMQ dedup via jobId for aggregation
+- [ ] Fix watermark logic for late events → adjustments
+- [ ] Implement usage endpoints (current + projection)
+- [ ] API authentication + tenant scoping
+- [ ] Price mappings CRUD (DB-backed)
+- [ ] Alerts CRUD + history endpoints
+- [ ] Health checks + Prometheus metrics
+- [ ] Drizzle migrations and bootstrap
+- [ ] Security and resilience hardening
+
+### Next: Billing Simulator
+
+- [ ] Simulator core: Scenario DSL + runner
+- [ ] Stripe billing driver (test clocks, meters v2, credits)
+- [ ] Simulator DB schema & migrations
+- [ ] CSV/S3 parity adapter + MinIO
+- [ ] Assertions library for simulator
+- [ ] sim-api: CRUD scenarios, run orchestration
+- [ ] sim-reporter: HTML/JSON reports
+- [ ] MinIO infra profile for CSV parity tests
+- [ ] Simulator CLI (run/validate/report)
+- [ ] Simulator Prometheus metrics
+- [ ] Credit Grants lifecycle
+- [ ] Mixed cadence invoice scenario
+- [ ] Dunning lab
+- [ ] CI for simulator (fast PR + nightly full)
+- [ ] Docs: Simulator getting started + scenarios
+
+[View full roadmap →](https://github.com/stripemeter/stripemeter/projects/1)
 ## License
 
 StripeMeter is [MIT licensed](./LICENSE). Use it, modify it, distribute it - we believe in open source!
