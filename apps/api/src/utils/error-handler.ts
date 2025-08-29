@@ -2,7 +2,7 @@
  * Global error handler
  */
 
-import type { FastifyError, FastifyReply, FastifyRequest } from 'fastify';
+import type { FastifyReply, FastifyRequest } from 'fastify';
 import { ZodError } from 'zod';
 import { logger } from './logger';
 
