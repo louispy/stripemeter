@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { Database, Search } from 'lucide-react';
 import { formatDate, formatNumber } from '../lib/utils';
 

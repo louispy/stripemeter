@@ -69,7 +69,7 @@ export const usageRoutes: FastifyPluginAsync = async (server) => {
     },
   }, async (request, reply) => {
     // TODO: Implement usage query logic
-    const { tenantId, customerRef } = request.query;
+    const { tenantId: _tenantId, customerRef } = request.query;
     
     reply.send({
       customerRef,
@@ -144,7 +144,7 @@ export const usageRoutes: FastifyPluginAsync = async (server) => {
     },
   }, async (request, reply) => {
     // TODO: Implement projection logic using pricing library
-    const { customerRef, periodStart, periodEnd } = request.body;
+    const { tenantId: _tenantId, customerRef, periodStart, periodEnd } = request.body;
     
     reply.send({
       customerRef,

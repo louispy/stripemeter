@@ -3,7 +3,7 @@
  */
 
 import { FastifyPluginAsync } from 'fastify';
-import { checkDatabaseHealth, checkRedisHealth } from '@stripemeter/database/src/client';
+import { checkDatabaseHealth, checkRedisHealth } from '@stripemeter/database';
 import type { HealthResponse } from '@stripemeter/core';
 
 export const healthRoutes: FastifyPluginAsync = async (server) => {
@@ -25,7 +25,7 @@ export const healthRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
-  }, async (request, reply) => {
+  }, async (_request, reply) => {
     reply.send({
       status: 'ok',
       timestamp: new Date().toISOString(),
@@ -49,7 +49,7 @@ export const healthRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
-  }, async (request, reply) => {
+  }, async (_request, reply) => {
     reply.send({ status: 'alive' });
   });
 
@@ -95,7 +95,7 @@ export const healthRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
-  }, async (request, reply) => {
+  }, async (_request, reply) => {
     const checks = {
       database: await checkDatabaseHealth(),
       redis: await checkRedisHealth(),

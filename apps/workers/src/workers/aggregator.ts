@@ -3,10 +3,10 @@
  */
 
 import { Worker, Queue, Job } from 'bullmq';
-import { redis, db, schema } from '@stripemeter/database';
+import { redis, db, events, counters, adjustments } from '@stripemeter/database';
 import { eq, and, gte, lte, sql } from 'drizzle-orm';
 import { logger } from '../utils/logger';
-import { getPeriodStart, getPeriodEnd, isEventTooLate } from '@stripemeter/core';
+import { getPeriodEnd, isEventTooLate } from '@stripemeter/core';
 
 interface AggregationJob {
   tenantId: string;
@@ -75,13 +75,13 @@ export class AggregatorWorker {
       // Check if counter exists
       const [existingCounter] = await db
         .select()
-        .from(schema.counters)
+        .from(counters)
         .where(
           and(
-            eq(schema.counters.tenantId, tenantId),
-            eq(schema.counters.metric, metric),
-            eq(schema.counters.customerRef, customerRef),
-            eq(schema.counters.periodStart, periodStart)
+            eq(counters.tenantId, tenantId),
+            eq(counters.metric, metric),
+            eq(counters.customerRef, customerRef),
+            eq(counters.periodStart, periodStart)
           )
         )
         .limit(1);
@@ -89,44 +89,44 @@ export class AggregatorWorker {
       // Calculate aggregations from events
       const [aggregations] = await db
         .select({
-          sum: sql<string>`COALESCE(SUM(${schema.events.quantity}), 0)::numeric`,
-          max: sql<string>`COALESCE(MAX(${schema.events.quantity}), 0)::numeric`,
+          sum: sql<string>`COALESCE(SUM(${events.quantity}), 0)::numeric`,
+          max: sql<string>`COALESCE(MAX(${events.quantity}), 0)::numeric`,
           last: sql<string>`(
-            SELECT ${schema.events.quantity} 
-            FROM ${schema.events} 
-            WHERE ${schema.events.tenantId} = ${tenantId}
-              AND ${schema.events.metric} = ${metric}
-              AND ${schema.events.customerRef} = ${customerRef}
-              AND ${schema.events.ts} >= ${periodStartDate}
-              AND ${schema.events.ts} <= ${periodEndDate}
-            ORDER BY ${schema.events.ts} DESC
+            SELECT ${events.quantity} 
+            FROM ${events} 
+            WHERE ${events.tenantId} = ${tenantId}
+              AND ${events.metric} = ${metric}
+              AND ${events.customerRef} = ${customerRef}
+              AND ${events.ts} >= ${periodStartDate}
+              AND ${events.ts} <= ${periodEndDate}
+            ORDER BY ${events.ts} DESC
             LIMIT 1
           )::numeric`,
-          maxTs: sql<Date>`MAX(${schema.events.ts})`,
+          maxTs: sql<Date>`MAX(${events.ts})`,
         })
-        .from(schema.events)
+        .from(events)
         .where(
           and(
-            eq(schema.events.tenantId, tenantId),
-            eq(schema.events.metric, metric),
-            eq(schema.events.customerRef, customerRef),
-            gte(schema.events.ts, periodStartDate),
-            lte(schema.events.ts, periodEndDate)
+            eq(events.tenantId, tenantId),
+            eq(events.metric, metric),
+            eq(events.customerRef, customerRef),
+            gte(events.ts, periodStartDate),
+            lte(events.ts, periodEndDate)
           )
         );
 
       // Add adjustments if any
       const [adjustmentSum] = await db
         .select({
-          total: sql<string>`COALESCE(SUM(${schema.adjustments.delta}), 0)::numeric`,
+          total: sql<string>`COALESCE(SUM(${adjustments.delta}), 0)::numeric`,
         })
-        .from(schema.adjustments)
+        .from(adjustments)
         .where(
           and(
-            eq(schema.adjustments.tenantId, tenantId),
-            eq(schema.adjustments.metric, metric),
-            eq(schema.adjustments.customerRef, customerRef),
-            eq(schema.adjustments.periodStart, periodStart)
+            eq(adjustments.tenantId, tenantId),
+            eq(adjustments.metric, metric),
+            eq(adjustments.customerRef, customerRef),
+            eq(adjustments.periodStart, periodStart)
           )
         );
 
@@ -140,7 +140,7 @@ export class AggregatorWorker {
       if (existingCounter) {
         // Update existing counter
         await db
-          .update(schema.counters)
+          .update(counters)
           .set({
             aggSum: finalSum.toString(),
             aggMax: finalMax.toString(),
@@ -150,10 +150,10 @@ export class AggregatorWorker {
           })
           .where(
             and(
-              eq(schema.counters.tenantId, tenantId),
-              eq(schema.counters.metric, metric),
-              eq(schema.counters.customerRef, customerRef),
-              eq(schema.counters.periodStart, periodStart)
+              eq(counters.tenantId, tenantId),
+              eq(counters.metric, metric),
+              eq(counters.customerRef, customerRef),
+              eq(counters.periodStart, periodStart)
             )
           );
         
@@ -161,7 +161,7 @@ export class AggregatorWorker {
       } else {
         // Insert new counter
         await db
-          .insert(schema.counters)
+          .insert(counters)
           .values({
             tenantId,
             metric,
@@ -198,15 +198,15 @@ export class AggregatorWorker {
       if (existingCounter && existingCounter.watermarkTs) {
         const lateEvents = await db
           .select()
-          .from(schema.events)
+          .from(events)
           .where(
             and(
-              eq(schema.events.tenantId, tenantId),
-              eq(schema.events.metric, metric),
-              eq(schema.events.customerRef, customerRef),
-              gte(schema.events.ts, periodStartDate),
-              lte(schema.events.ts, periodEndDate),
-              lte(schema.events.ts, existingCounter.watermarkTs)
+              eq(events.tenantId, tenantId),
+              eq(events.metric, metric),
+              eq(events.customerRef, customerRef),
+              gte(events.ts, periodStartDate),
+              lte(events.ts, periodEndDate),
+              lte(events.ts, existingCounter.watermarkTs)
             )
           );
 
@@ -214,7 +214,7 @@ export class AggregatorWorker {
           if (isEventTooLate(event.ts, existingCounter.watermarkTs)) {
             // Create adjustment for late event
             await db
-              .insert(schema.adjustments)
+              .insert(adjustments)
               .values({
                 tenantId,
                 metric,

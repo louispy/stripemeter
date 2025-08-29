@@ -2,15 +2,12 @@
  * Alert Monitor Worker - Monitors usage and triggers alerts
  */
 
-import { db, redis, schema } from '@stripemeter/database';
-import { eq, and, gte, sql } from 'drizzle-orm';
+import { db, redis, alertConfigs, alertHistory, counters } from '@stripemeter/database';
+import { eq, and } from 'drizzle-orm';
 import { logger } from '../utils/logger';
 import { getCurrentPeriod } from '@stripemeter/core';
 
-interface AlertAction {
-  type: 'email' | 'webhook' | 'slack' | 'hard_cap' | 'soft_cap';
-  config: Record<string, any>;
-}
+
 
 export class AlertMonitorWorker {
   private intervalId: NodeJS.Timeout | null = null;
@@ -58,14 +55,14 @@ export class AlertMonitorWorker {
       const { start: periodStart } = getCurrentPeriod();
       
       // Get all enabled alert configs
-      const alertConfigs = await db
+      const alertConfigsList = await db
         .select()
-        .from(schema.alertConfigs)
-        .where(eq(schema.alertConfigs.enabled, true));
+        .from(alertConfigs)
+        .where(eq(alertConfigs.enabled, true));
 
-      logger.debug(`Checking ${alertConfigs.length} alert configurations`);
+      logger.debug(`Checking ${alertConfigsList.length} alert configurations`);
 
-      for (const config of alertConfigs) {
+      for (const config of alertConfigsList) {
         try {
           await this.checkAlertConfig(config, periodStart);
         } catch (error) {
@@ -81,35 +78,36 @@ export class AlertMonitorWorker {
   }
 
   private async checkAlertConfig(
-    config: typeof schema.alertConfigs.$inferSelect,
+    config: typeof alertConfigs.$inferSelect,
     periodStart: string
   ) {
-    const { tenantId, customerRef, metric, type, threshold, action } = config;
+    const { tenantId, customerRef, metric, type, threshold } = config;
 
     // Get relevant counters based on alert scope
-    let query = db
+    const countersQuery = db
       .select()
-      .from(schema.counters)
+      .from(counters)
       .where(
         and(
-          eq(schema.counters.tenantId, tenantId),
-          eq(schema.counters.periodStart, periodStart),
-          ...(customerRef ? [eq(schema.counters.customerRef, customerRef)] : []),
-          ...(metric ? [eq(schema.counters.metric, metric)] : [])
+          eq(counters.tenantId, tenantId),
+          eq(counters.periodStart, periodStart),
+          ...(customerRef ? [eq(counters.customerRef, customerRef)] : []),
+          ...(metric ? [eq(counters.metric, metric)] : [])
         )
       );
 
-    const counters = await query;
+    const countersRows = await countersQuery;
 
     // Calculate current value based on alert type
     let currentValue = 0;
     let shouldTrigger = false;
+    const thresholdNum = parseFloat((threshold as unknown) as string);
 
     switch (type) {
       case 'threshold':
         // Sum of all matching counters
-        currentValue = counters.reduce((sum, c) => sum + parseFloat(c.aggSum), 0);
-        shouldTrigger = currentValue >= threshold;
+        currentValue = countersRows.reduce((sum: number, c: any) => sum + parseFloat(c.aggSum), 0);
+        shouldTrigger = currentValue >= thresholdNum;
         break;
 
       case 'spike':
@@ -120,15 +118,15 @@ export class AlertMonitorWorker {
           metric,
           periodStart
         );
-        currentValue = counters.reduce((sum, c) => sum + parseFloat(c.aggSum), 0);
+        currentValue = countersRows.reduce((sum: number, c: any) => sum + parseFloat(c.aggSum), 0);
         const spikeRatio = previousPeriod > 0 ? currentValue / previousPeriod : 0;
-        shouldTrigger = spikeRatio >= threshold;
+        shouldTrigger = spikeRatio >= thresholdNum;
         break;
 
       case 'budget':
         // Check against budget limit
-        currentValue = counters.reduce((sum, c) => sum + parseFloat(c.aggSum), 0);
-        shouldTrigger = currentValue >= threshold;
+        currentValue = countersRows.reduce((sum: number, c: any) => sum + parseFloat(c.aggSum), 0);
+        shouldTrigger = currentValue >= thresholdNum;
         break;
     }
 
@@ -147,14 +145,14 @@ export class AlertMonitorWorker {
   }
 
   private async triggerAlert(
-    config: typeof schema.alertConfigs.$inferSelect,
+    config: typeof alertConfigs.$inferSelect,
     currentValue: number,
     periodStart: string
   ) {
     logger.warn(`Alert triggered: ${config.id}, value=${currentValue}, threshold=${config.threshold}`);
 
     // Record alert in history
-    await db.insert(schema.alertHistory).values({
+    await db.insert(alertHistory).values({
       alertConfigId: config.id,
       tenantId: config.tenantId,
       customerRef: config.customerRef,
@@ -205,30 +203,31 @@ export class AlertMonitorWorker {
     currentDate.setMonth(currentDate.getMonth() - 1);
     const previousPeriodStart = currentDate.toISOString().split('T')[0];
 
-    const counters = await db
+    const countersPrev = await db
       .select()
-      .from(schema.counters)
+      .from(counters)
       .where(
         and(
-          eq(schema.counters.tenantId, tenantId),
-          eq(schema.counters.periodStart, previousPeriodStart),
-          ...(customerRef ? [eq(schema.counters.customerRef, customerRef)] : []),
-          ...(metric ? [eq(schema.counters.metric, metric)] : [])
+          eq(counters.tenantId, tenantId),
+          eq(counters.periodStart, previousPeriodStart),
+          ...(customerRef ? [eq(counters.customerRef, customerRef)] : []),
+          ...(metric ? [eq(counters.metric, metric)] : [])
         )
       );
 
-    return counters.reduce((sum, c) => sum + parseFloat(c.aggSum), 0);
+    return countersPrev.reduce((sum: number, c: any) => sum + parseFloat(c.aggSum), 0);
   }
 
-  private async sendEmailAlert(config: typeof schema.alertConfigs.$inferSelect, value: number) {
+  private async sendEmailAlert(config: typeof alertConfigs.$inferSelect, value: number) {
     // TODO: Implement email sending (e.g., using SendGrid, AWS SES, etc.)
-    logger.info(`Would send email alert to ${config.config.email}: Usage at ${value}, threshold ${config.threshold}`);
+    const cfg = (config.config as unknown) as any;
+    logger.info(`Would send email alert to ${cfg.email}: Usage at ${value}, threshold ${config.threshold}`);
     
     // Store in Redis for email queue processing
     await redis.lpush(
       'email:queue',
       JSON.stringify({
-        to: config.config.email,
+        to: cfg.email,
         subject: `Usage Alert: ${config.type} threshold exceeded`,
         template: 'usage_alert',
         data: {
@@ -242,8 +241,8 @@ export class AlertMonitorWorker {
     );
   }
 
-  private async sendWebhookAlert(config: typeof schema.alertConfigs.$inferSelect, value: number) {
-    const webhookUrl = config.config.url;
+  private async sendWebhookAlert(config: typeof alertConfigs.$inferSelect, value: number) {
+    const webhookUrl = ((config.config as unknown) as any).url;
     if (!webhookUrl) {
       logger.error(`No webhook URL configured for alert ${config.id}`);
       return;
@@ -254,7 +253,7 @@ export class AlertMonitorWorker {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(config.config.headers || {}),
+          ...((((config.config as unknown) as any).headers) || {}),
         },
         body: JSON.stringify({
           alertId: config.id,
@@ -277,8 +276,8 @@ export class AlertMonitorWorker {
     }
   }
 
-  private async sendSlackAlert(config: typeof schema.alertConfigs.$inferSelect, value: number) {
-    const slackWebhook = config.config.webhook;
+  private async sendSlackAlert(config: typeof alertConfigs.$inferSelect, value: number) {
+    const slackWebhook = ((config.config as unknown) as any).webhook;
     if (!slackWebhook) {
       logger.error(`No Slack webhook configured for alert ${config.id}`);
       return;
@@ -312,7 +311,7 @@ export class AlertMonitorWorker {
     }
   }
 
-  private async enforceHardCap(config: typeof schema.alertConfigs.$inferSelect) {
+  private async enforceHardCap(config: typeof alertConfigs.$inferSelect) {
     // Set hard cap flag in Redis - API will reject new events
     const capKey = `cap:hard:${config.tenantId}:${config.customerRef || 'all'}:${config.metric || 'all'}`;
     await redis.set(capKey, '1');
@@ -320,12 +319,12 @@ export class AlertMonitorWorker {
     logger.warn(`Hard cap enforced for ${capKey}`);
     
     // Notify customer
-    if (config.config.notifyCustomer) {
+    if (((config.config as unknown) as any).notifyCustomer) {
       await this.sendEmailAlert(config, parseFloat(config.threshold));
     }
   }
 
-  private async enforceSoftCap(config: typeof schema.alertConfigs.$inferSelect) {
+  private async enforceSoftCap(config: typeof alertConfigs.$inferSelect) {
     // Set soft cap flag in Redis - API will warn but still accept events
     const capKey = `cap:soft:${config.tenantId}:${config.customerRef || 'all'}:${config.metric || 'all'}`;
     await redis.set(capKey, '1');
@@ -333,7 +332,7 @@ export class AlertMonitorWorker {
     logger.info(`Soft cap enforced for ${capKey}`);
     
     // Notify customer
-    if (config.config.notifyCustomer) {
+    if (((config.config as unknown) as any).notifyCustomer) {
       await this.sendEmailAlert(config, parseFloat(config.threshold));
     }
   }

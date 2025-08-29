@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { GitBranch, Plus } from 'lucide-react';
 
 export default function Mappings() {

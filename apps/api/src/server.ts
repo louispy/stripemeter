@@ -2,13 +2,12 @@
  * Fastify server configuration
  */
 
-import Fastify, { FastifyInstance } from 'fastify';
+import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
-import { logger } from './utils/logger';
 import { errorHandler } from './utils/error-handler';
 
 // Import routes
@@ -19,9 +18,9 @@ import { mappingsRoutes } from './routes/mappings';
 import { reconciliationRoutes } from './routes/reconciliation';
 import { alertsRoutes } from './routes/alerts';
 
-export async function buildServer(): Promise<FastifyInstance> {
+export async function buildServer() {
   const server = Fastify({
-    logger,
+    logger: true,
     requestIdHeader: 'x-request-id',
     requestIdLogLabel: 'requestId',
     disableRequestLogging: false,
@@ -29,7 +28,9 @@ export async function buildServer(): Promise<FastifyInstance> {
   });
 
   // Register error handler
-  server.setErrorHandler(errorHandler);
+  server.setErrorHandler((error, request, reply) => {
+    return errorHandler(error, request, reply);
+  });
 
   // Register plugins
   await server.register(helmet, {

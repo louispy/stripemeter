@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { Settings as SettingsIcon, Save } from 'lucide-react';
 
 export default function Settings() {

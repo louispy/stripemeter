@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { 
   Activity, 
-  TrendingUp, 
   AlertCircle, 
   DollarSign, 
   Clock,
@@ -79,10 +78,10 @@ const mockData: UsageData = {
 };
 
 function UsageWidget({ 
-  apiUrl, 
   tenantId, 
   customerId, 
-  apiKey, 
+  apiUrl,
+  apiKey,
   theme = 'light',
   compact = false 
 }: WidgetProps) {
@@ -90,8 +89,40 @@ function UsageWidget({
 
   // In a real implementation, this would fetch from the API
   const { data: usage, isLoading, error } = useQuery({
-    queryKey: ['usage', tenantId, customerId],
+    queryKey: ['usage', tenantId, customerId, apiUrl, apiKey],
     queryFn: async () => {
+      if (apiUrl) {
+        try {
+          const url = new URL('/v1/usage/current', apiUrl);
+          url.searchParams.set('tenantId', tenantId);
+          url.searchParams.set('customerRef', customerId);
+          const res = await fetch(url.toString(), {
+            headers: {
+              'Content-Type': 'application/json',
+              ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+            },
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const payload = await res.json();
+          // Adapt payload to UsageData shape if needed
+          const adapted: UsageData = {
+            customerRef: payload.customerRef ?? customerId,
+            period: payload.period ?? { start: new Date().toISOString(), end: new Date().toISOString() },
+            metrics: payload.metrics ?? [],
+            projection: payload.projection ?? {
+              subtotal: 0,
+              total: 0,
+              currency: 'USD',
+              freshness: { lastUpdate: new Date().toISOString(), staleness: 0 },
+            },
+            alerts: payload.alerts ?? [],
+          };
+          return adapted;
+        } catch (_) {
+          // Fallback to mock on failure
+          return mockData;
+        }
+      }
       // Mock API call
       await new Promise(resolve => setTimeout(resolve, 1000));
       return mockData;

@@ -3,7 +3,7 @@
  */
 
 import { pgTable, uuid, text, numeric, timestamp, date, index } from 'drizzle-orm/pg-core';
-import { sql } from 'drizzle-orm';
+
 
 export const adjustments = pgTable('adjustments', {
   id: uuid('id').primaryKey().defaultRandom(),

@@ -88,7 +88,7 @@ export const reconciliationRoutes: FastifyPluginAsync = async (server) => {
   }, async (request, reply) => {
     // TODO: Implement reconciliation report generation
     const { period } = request.params;
-    const { tenantId } = request.query;
+    const { tenantId: _tenantId } = request.query;
     
     reply.send({
       period,
@@ -131,7 +131,7 @@ export const reconciliationRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
-  }, async (request, reply) => {
+  }, async (_request, reply) => {
     // TODO: Queue reconciliation job
     reply.status(202).send({
       message: 'Reconciliation job queued',
@@ -173,7 +173,7 @@ export const reconciliationRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
-  }, async (request, reply) => {
+  }, async (_request, reply) => {
     // TODO: Apply adjustments
     reply.send({
       applied: 0,

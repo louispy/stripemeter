@@ -3,8 +3,8 @@
  */
 
 import Stripe from 'stripe';
-import { db, redis, schema } from '@stripemeter/database';
-import { eq, and, gte, sql } from 'drizzle-orm';
+import { db, redis, priceMappings, reconciliationReports, counters, adjustments } from '@stripemeter/database';
+import { eq, and, sql } from 'drizzle-orm';
 import { logger } from '../utils/logger';
 import { getCurrentPeriod, RECONCILIATION_EPSILON } from '@stripemeter/core';
 
@@ -68,11 +68,11 @@ export class ReconcilerWorker {
       // Get all active price mappings with subscription items
       const mappings = await db
         .select()
-        .from(schema.priceMappings)
+        .from(priceMappings)
         .where(
           and(
-            eq(schema.priceMappings.active, true),
-            sql`${schema.priceMappings.subscriptionItemId} IS NOT NULL`
+            eq(priceMappings.active, true),
+            sql`${priceMappings.subscriptionItemId} IS NOT NULL`
           )
         );
 
@@ -115,42 +115,42 @@ export class ReconcilerWorker {
   }
 
   private async reconcileSubscriptionItem(
-    mapping: typeof schema.priceMappings.$inferSelect,
+    mapping: typeof priceMappings.$inferSelect,
     periodStart: string
-  ): Promise<Array<typeof schema.reconciliationReports.$inferSelect>> {
+  ): Promise<Array<typeof reconciliationReports.$inferInsert>> {
     const { tenantId, metric, aggregation, stripeAccount, subscriptionItemId } = mapping;
     
     if (!subscriptionItemId) {
       return [];
     }
 
-    const reports: Array<typeof schema.reconciliationReports.$inferInsert> = [];
+    const reports: Array<typeof reconciliationReports.$inferInsert> = [];
 
     try {
       // Get local totals from counters
-      const counters = await db
+      const countersList = await db
         .select({
-          customerRef: schema.counters.customerRef,
+          customerRef: counters.customerRef,
           total: sql<string>`
             CASE 
-              WHEN ${aggregation} = 'sum' THEN ${schema.counters.aggSum}
-              WHEN ${aggregation} = 'max' THEN ${schema.counters.aggMax}
-              WHEN ${aggregation} = 'last' THEN COALESCE(${schema.counters.aggLast}, '0')
-              ELSE ${schema.counters.aggSum}
+              WHEN ${aggregation} = 'sum' THEN ${counters.aggSum}
+              WHEN ${aggregation} = 'max' THEN ${counters.aggMax}
+              WHEN ${aggregation} = 'last' THEN COALESCE(${counters.aggLast}, '0')
+              ELSE ${counters.aggSum}
             END
           `,
         })
-        .from(schema.counters)
+        .from(counters)
         .where(
           and(
-            eq(schema.counters.tenantId, tenantId),
-            eq(schema.counters.metric, metric),
-            eq(schema.counters.periodStart, periodStart)
+            eq(counters.tenantId, tenantId),
+            eq(counters.metric, metric),
+            eq(counters.periodStart, periodStart)
           )
         );
 
       // Calculate local total across all customers
-      const localTotal = counters.reduce((sum, c) => sum + parseFloat(c.total), 0);
+      const localTotal = countersList.reduce((sum: number, c: any) => sum + parseFloat(c.total), 0);
 
       // Get Stripe reported usage
       const stripeUsage = await this.getStripeUsage(subscriptionItemId, periodStart, stripeAccount);
@@ -170,7 +170,7 @@ export class ReconcilerWorker {
       }
 
       // Create reconciliation report
-      const report: typeof schema.reconciliationReports.$inferInsert = {
+      const report: typeof reconciliationReports.$inferInsert = {
         tenantId,
         subscriptionItemId,
         periodStart,
@@ -181,7 +181,7 @@ export class ReconcilerWorker {
         createdAt: new Date(),
       };
 
-      await db.insert(schema.reconciliationReports).values(report);
+      await db.insert(reconciliationReports).values(report);
       reports.push(report);
 
       // If investigating, create suggested adjustments
@@ -189,7 +189,7 @@ export class ReconcilerWorker {
         await this.createSuggestedAdjustments(
           tenantId,
           metric,
-          counters,
+          countersList,
           localTotal,
           stripeTotal,
           periodStart
@@ -225,7 +225,7 @@ export class ReconcilerWorker {
   ): Promise<Stripe.UsageRecordSummary> {
     try {
       // Get subscription item to find the current period
-      const subscriptionItem = await this.stripe.subscriptionItems.retrieve(
+      await this.stripe.subscriptionItems.retrieve(
         subscriptionItemId,
         {
           stripeAccount: stripeAccount !== 'default' ? stripeAccount : undefined,
@@ -286,7 +286,7 @@ export class ReconcilerWorker {
         const adjustmentAmount = diff * proportion;
 
         if (adjustmentAmount > 0.01) { // Only create adjustment if significant
-          await db.insert(schema.adjustments).values({
+          await db.insert(adjustments).values({
             tenantId,
             metric,
             customerRef: counter.customerRef,

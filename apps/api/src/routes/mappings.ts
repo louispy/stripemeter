@@ -47,7 +47,7 @@ export const mappingsRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
-  }, async (request, reply) => {
+  }, async (_request, reply) => {
     // TODO: Implement mapping retrieval from database
     reply.send([]);
   });
@@ -129,7 +129,7 @@ export const mappingsRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
-  }, async (request, reply) => {
+  }, async (_request, reply) => {
     // TODO: Implement mapping update
     reply.status(501).send({ 
       error: 'Not Implemented',
@@ -160,7 +160,7 @@ export const mappingsRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
-  }, async (request, reply) => {
+  }, async (_request, reply) => {
     // TODO: Implement mapping deletion
     reply.status(204).send();
   });

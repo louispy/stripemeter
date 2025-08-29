@@ -2,8 +2,7 @@
  * Events table schema - The immutable ledger of all usage events
  */
 
-import { pgTable, text, uuid, numeric, timestamp, jsonb, index, primaryKey } from 'drizzle-orm/pg-core';
-import { sql } from 'drizzle-orm';
+import { pgTable, text, uuid, numeric, timestamp, jsonb, index } from 'drizzle-orm/pg-core';
 
 export const events = pgTable('events', {
   // Primary key - deterministic idempotency key
