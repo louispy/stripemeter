@@ -16,7 +16,7 @@ export default defineConfig({
         '**/index.ts',
       ],
     },
-    setupFiles: ['./test/setup.ts'],
+    setupFiles: [path.resolve(__dirname, './test/setup.ts')],
   },
   resolve: {
     alias: {

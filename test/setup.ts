@@ -3,10 +3,9 @@
  */
 
 import { beforeAll, afterAll } from 'vitest';
-import dotenv from 'dotenv';
 
-// Load test environment variables
-dotenv.config({ path: '.env.test' });
+// Note: Avoid external deps here for CI portability. If env vars are needed,
+// populate them in the workflow or load them within specific tests.
 
 beforeAll(() => {
   // Set test environment
