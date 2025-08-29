@@ -1,0 +1,44 @@
+name: Simulator Nightly Tests
+
+on:
+  schedule:
+    - cron: '0 2 * * *' # 2 AM UTC daily
+  workflow_dispatch:
+
+jobs:
+  simulator-nightly:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck (pricing-lib)
+        run: pnpm run typecheck:simulator
+
+      - name: Full test suite (pricing-lib)
+        run: pnpm run test:simulator:full
+
+      - name: Upload artifacts (logs)
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: simulator-logs
+          path: |
+            packages/pricing-lib/**/coverage
+            packages/pricing-lib/**/test-results
+
+
