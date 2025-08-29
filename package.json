@@ -19,7 +19,8 @@
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
     "db:migrate": "pnpm --filter @stripemeter/database migrate",
-    "db:seed": "pnpm --filter @stripemeter/database seed"
+    "db:seed": "pnpm --filter @stripemeter/database seed",
+    "typecheck": "tsc -b --pretty false"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
