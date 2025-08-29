@@ -147,6 +147,56 @@ The writer tracks `pushed_total` per subscription item and only sends the delta 
 ### Reconciliation (Trust but Verify)
 Hourly comparison of local totals vs Stripe reported usage. Differences beyond epsilon (0.5%) trigger investigation and suggested adjustments.
 
+## Pricing Simulator
+
+**Test and optimize your pricing strategy before going live**
+
+The StripeMeter pricing simulator helps you validate billing logic, compare pricing models, and ensure customers are never surprised by their bills.
+
+### Quick Example
+
+```typescript
+import { InvoiceSimulator } from '@stripemeter/pricing-lib';
+
+const simulator = new InvoiceSimulator();
+
+// Compare tiered vs volume pricing for 25,000 API calls
+const tieredPrice = simulator.simulate({
+  customerId: 'test',
+  periodStart: '2024-01-01',
+  periodEnd: '2024-02-01',
+  usageItems: [{
+    metric: 'api_calls',
+    quantity: 25000,
+    priceConfig: {
+      model: 'tiered',
+      currency: 'USD',
+      tiers: [
+        { upTo: 10000, unitPrice: 0.01 },
+        { upTo: 50000, unitPrice: 0.008 },
+        { upTo: null, unitPrice: 0.005 }
+      ]
+    }
+  }]
+});
+
+console.log(`Tiered pricing: $${tieredPrice.total}`); // $220
+```
+
+### 📖 Complete Documentation
+
+- **[Simulator Getting Started](docs/simulator-getting-started.md)** - Complete guide with examples
+- **[Pricing Scenarios](docs/simulator-scenarios.md)** - Real-world use cases and comparisons
+- **[Example Code](examples/pricing-simulator-examples.ts)** - Runnable examples for all pricing models
+
+### Why Use the Simulator?
+
+✅ **Validate pricing accuracy** - Test before customers see bills  
+✅ **Compare pricing models** - Tiered vs Volume vs Graduated  
+✅ **Optimize revenue** - Find the best pricing for your segments  
+✅ **Handle edge cases** - Test zero usage, tier boundaries, credits  
+✅ **Enterprise scenarios** - Multi-metric billing with commitments  
+
 ## Usage Examples
 
 ### Track Usage with SDKs
@@ -368,7 +418,7 @@ helm install stripemeter ./charts/stripemeter
 - [ ] Mixed cadence invoice scenario
 - [ ] Dunning lab
 - [ ] CI for simulator (fast PR + nightly full)
-- [ ] Docs: Simulator getting started + scenarios
+- [x] Docs: Simulator getting started + scenarios
 
 [View full roadmap →](https://github.com/stripemeter/stripemeter/projects/1)
 ## License
