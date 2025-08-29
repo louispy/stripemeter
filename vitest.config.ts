@@ -1,5 +1,8 @@
 import { defineConfig } from 'vitest/config';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   test: {
@@ -16,14 +19,14 @@ export default defineConfig({
         '**/index.ts',
       ],
     },
-    setupFiles: [path.resolve(__dirname, './test/setup.ts')],
+    setupFiles: [path.resolve(rootDir, './test/setup.ts')],
   },
   resolve: {
     alias: {
-      '@stripemeter/core': path.resolve(__dirname, './packages/core/src'),
-      '@stripemeter/database': path.resolve(__dirname, './packages/database/src'),
-      '@stripemeter/pricing-lib': path.resolve(__dirname, './packages/pricing-lib/src'),
-      '@stripemeter/sdk-node': path.resolve(__dirname, './packages/sdk-node/src'),
+      '@stripemeter/core': path.resolve(rootDir, './packages/core/src'),
+      '@stripemeter/database': path.resolve(rootDir, './packages/database/src'),
+      '@stripemeter/pricing-lib': path.resolve(rootDir, './packages/pricing-lib/src'),
+      '@stripemeter/sdk-node': path.resolve(rootDir, './packages/sdk-node/src'),
     },
   },
 });
