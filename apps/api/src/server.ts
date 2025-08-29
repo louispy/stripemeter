@@ -2,7 +2,7 @@
  * Fastify server configuration
  */
 
-import Fastify, { FastifyInstance } from 'fastify';
+import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
@@ -18,7 +18,7 @@ import { mappingsRoutes } from './routes/mappings';
 import { reconciliationRoutes } from './routes/reconciliation';
 import { alertsRoutes } from './routes/alerts';
 
-export async function buildServer(): Promise<FastifyInstance> {
+export async function buildServer() {
   const server = Fastify({
     logger: true,
     requestIdHeader: 'x-request-id',

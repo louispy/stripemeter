@@ -2,18 +2,18 @@
  * Global error handler
  */
 
-import { FastifyError, FastifyReply, FastifyRequest } from 'fastify';
+import type { FastifyError, FastifyReply, FastifyRequest } from 'fastify';
 import { ZodError } from 'zod';
 import { logger } from './logger';
 
 export async function errorHandler(
-  error: FastifyError,
+  error: unknown,
   request: FastifyRequest,
   reply: FastifyReply
 ): Promise<void> {
   // Log the error
   logger.error({
-    err: error,
+    err: error as any,
     request: {
       method: request.method,
       url: request.url,
@@ -33,7 +33,7 @@ export async function errorHandler(
   }
 
   // Handle rate limit errors
-  if (error.statusCode === 429) {
+  if ((error as any)?.statusCode === 429) {
     reply.status(429).send({
       error: 'Too Many Requests',
       message: 'Rate limit exceeded. Please try again later.',
@@ -42,7 +42,7 @@ export async function errorHandler(
   }
 
   // Handle not found errors
-  if (error.statusCode === 404) {
+  if ((error as any)?.statusCode === 404) {
     reply.status(404).send({
       error: 'Not Found',
       message: 'The requested resource was not found.',
@@ -51,7 +51,7 @@ export async function errorHandler(
   }
 
   // Handle unauthorized errors
-  if (error.statusCode === 401) {
+  if ((error as any)?.statusCode === 401) {
     reply.status(401).send({
       error: 'Unauthorized',
       message: 'Authentication required.',
@@ -60,7 +60,7 @@ export async function errorHandler(
   }
 
   // Handle forbidden errors
-  if (error.statusCode === 403) {
+  if ((error as any)?.statusCode === 403) {
     reply.status(403).send({
       error: 'Forbidden',
       message: 'You do not have permission to access this resource.',
@@ -69,16 +69,16 @@ export async function errorHandler(
   }
 
   // Default error response
-  const statusCode = error.statusCode || 500;
+  const statusCode = (error as any)?.statusCode || 500;
   const message = statusCode === 500 
     ? 'An internal server error occurred.' 
-    : error.message;
+    : (error as any)?.message;
 
   reply.status(statusCode).send({
-    error: error.name || 'Error',
+    error: (error as any)?.name || 'Error',
     message,
     ...(process.env.NODE_ENV === 'development' && {
-      stack: error.stack,
+      stack: (error as any)?.stack,
     }),
   });
 }

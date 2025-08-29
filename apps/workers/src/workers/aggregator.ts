@@ -3,8 +3,7 @@
  */
 
 import { Worker, Queue, Job } from 'bullmq';
-import { redis, db } from '@stripemeter/database';
-import { events, counters, adjustments } from '@stripemeter/database';
+import { redis, db, events, counters, adjustments } from '@stripemeter/database';
 import { eq, and, gte, lte, sql } from 'drizzle-orm';
 import { logger } from '../utils/logger';
 import { getPeriodEnd, isEventTooLate } from '@stripemeter/core';

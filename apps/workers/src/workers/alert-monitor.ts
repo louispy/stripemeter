@@ -2,8 +2,7 @@
  * Alert Monitor Worker - Monitors usage and triggers alerts
  */
 
-import { db, redis } from '@stripemeter/database';
-import { alertConfigs, alertHistory, counters } from '@stripemeter/database';
+import { db, redis, alertConfigs, alertHistory, counters } from '@stripemeter/database';
 import { eq, and } from 'drizzle-orm';
 import { logger } from '../utils/logger';
 import { getCurrentPeriod } from '@stripemeter/core';
