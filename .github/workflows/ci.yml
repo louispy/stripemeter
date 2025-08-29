@@ -12,9 +12,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - uses: pnpm/action-setup@v2
+      - uses: pnpm/action-setup@v3
         with:
-          version: 8
+          version: 8.15.1
       
       - uses: actions/setup-node@v4
         with:
@@ -22,7 +22,7 @@ jobs:
           cache: 'pnpm'
       
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile
       
       - name: Run linter
         run: pnpm lint
@@ -60,9 +60,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - uses: pnpm/action-setup@v2
+      - uses: pnpm/action-setup@v3
         with:
-          version: 8
+          version: 8.15.1
       
       - uses: actions/setup-node@v4
         with:
@@ -70,7 +70,7 @@ jobs:
           cache: 'pnpm'
       
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile
       
       - name: Build packages
         run: pnpm build
@@ -94,9 +94,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - uses: pnpm/action-setup@v2
+      - uses: pnpm/action-setup@v3
         with:
-          version: 8
+          version: 8.15.1
       
       - uses: actions/setup-node@v4
         with:
@@ -104,7 +104,7 @@ jobs:
           cache: 'pnpm'
       
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile
       
       - name: Build all packages
         run: pnpm build
