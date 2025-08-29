@@ -141,6 +141,9 @@ importers:
       stripe:
         specifier: ^14.12.0
         version: 14.25.0
+      zod:
+        specifier: ^3.22.4
+        version: 3.25.76
     devDependencies:
       '@types/node':
         specifier: ^20.11.0
@@ -233,6 +236,9 @@ importers:
       dotenv:
         specifier: ^16.3.1
         version: 16.6.1
+      drizzle-orm:
+        specifier: ^0.29.3
+        version: 0.29.5(@types/react@18.3.23)(postgres@3.4.7)(react@18.3.1)
       exponential-backoff:
         specifier: ^3.1.1
         version: 3.1.2

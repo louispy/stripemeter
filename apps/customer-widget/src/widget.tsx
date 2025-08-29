@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { 
   Activity, 
-  TrendingUp, 
   AlertCircle, 
   DollarSign, 
   Clock,
@@ -79,10 +78,8 @@ const mockData: UsageData = {
 };
 
 function UsageWidget({ 
-  apiUrl, 
   tenantId, 
   customerId, 
-  apiKey, 
   theme = 'light',
   compact = false 
 }: WidgetProps) {

@@ -2,7 +2,7 @@
  * Stripemeter Node.js SDK
  */
 
-import axios, { AxiosInstance, AxiosError } from 'axios';
+import axios, { AxiosInstance } from 'axios';
 import { backOff } from 'exponential-backoff';
 import {
   UsageEvent,

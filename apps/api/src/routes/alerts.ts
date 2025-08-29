@@ -50,7 +50,7 @@ export const alertsRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
-  }, async (request, reply) => {
+  }, async (_request, reply) => {
     // TODO: Implement alert retrieval from database
     reply.send([]);
   });
@@ -135,7 +135,7 @@ export const alertsRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
-  }, async (request, reply) => {
+  }, async (_request, reply) => {
     // TODO: Implement alert update
     reply.status(501).send({ 
       error: 'Not Implemented',
@@ -166,7 +166,7 @@ export const alertsRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
-  }, async (request, reply) => {
+  }, async (_request, reply) => {
     // TODO: Implement alert deletion
     reply.status(204).send();
   });
@@ -221,7 +221,7 @@ export const alertsRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
-  }, async (request, reply) => {
+  }, async (_request, reply) => {
     // TODO: Implement alert history retrieval
     reply.send([]);
   });

@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { AlertTriangle, Plus, Bell } from 'lucide-react';
 
 export default function Alerts() {

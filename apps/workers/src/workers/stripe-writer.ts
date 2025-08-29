@@ -3,8 +3,9 @@
  */
 
 import Stripe from 'stripe';
-import { db, redis, schema } from '@stripemeter/database';
-import { eq, and, gte } from 'drizzle-orm';
+import { db, redis } from '@stripemeter/database';
+import { priceMappings, counters, writeLog } from '@stripemeter/database';
+import { eq, and } from 'drizzle-orm';
 import { logger } from '../utils/logger';
 import { generateStripeIdempotencyKey, getCurrentPeriod } from '@stripemeter/core';
 import { backOff } from 'exponential-backoff';
@@ -14,7 +15,7 @@ export class StripeWriterWorker {
   private stripe: Stripe;
   private intervalId: NodeJS.Timeout | null = null;
   private isRunning = false;
-  private rateLimiter: Map<string, pLimit.Limit> = new Map();
+  private rateLimiter: Map<string, any> = new Map();
 
   constructor() {
     this.stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
@@ -68,8 +69,8 @@ export class StripeWriterWorker {
       // Get all active price mappings
       const mappings = await db
         .select()
-        .from(schema.priceMappings)
-        .where(eq(schema.priceMappings.active, true));
+        .from(priceMappings)
+        .where(eq(priceMappings.active, true));
 
       logger.debug(`Processing ${mappings.length} price mappings`);
 
@@ -90,10 +91,10 @@ export class StripeWriterWorker {
   }
 
   private async processMappingDelta(
-    mapping: typeof schema.priceMappings.$inferSelect,
+    mapping: typeof priceMappings.$inferSelect,
     periodStart: string
   ) {
-    const { tenantId, metric, aggregation, stripeAccount, subscriptionItemId } = mapping;
+    const { tenantId, metric, stripeAccount, subscriptionItemId } = mapping;
 
     if (!subscriptionItemId) {
       logger.debug(`No subscription item for mapping ${mapping.id}, skipping`);
@@ -109,18 +110,18 @@ export class StripeWriterWorker {
     }
 
     // Get all customers with usage for this metric in current period
-    const counters = await db
+    const countersList = await db
       .select()
-      .from(schema.counters)
+      .from(counters)
       .where(
         and(
-          eq(schema.counters.tenantId, tenantId),
-          eq(schema.counters.metric, metric),
-          eq(schema.counters.periodStart, periodStart)
+          eq(counters.tenantId, tenantId),
+          eq(counters.metric, metric),
+          eq(counters.periodStart, periodStart)
         )
       );
 
-    for (const counter of counters) {
+    for (const counter of countersList) {
       await limiter(async () => {
         await this.pushDeltaForCustomer(
           mapping,
@@ -132,8 +133,8 @@ export class StripeWriterWorker {
   }
 
   private async pushDeltaForCustomer(
-    mapping: typeof schema.priceMappings.$inferSelect,
-    counter: typeof schema.counters.$inferSelect,
+    mapping: typeof priceMappings.$inferSelect,
+    counter: typeof counters.$inferSelect,
     periodStart: string
   ) {
     const { tenantId, stripeAccount, subscriptionItemId } = mapping;
@@ -156,20 +157,20 @@ export class StripeWriterWorker {
     }
 
     // Get previously pushed total
-    const [writeLog] = await db
+    const [writeLogRow] = await db
       .select()
-      .from(schema.writeLog)
+      .from(writeLog)
       .where(
         and(
-          eq(schema.writeLog.tenantId, tenantId),
-          eq(schema.writeLog.stripeAccount, stripeAccount),
-          eq(schema.writeLog.subscriptionItemId, subscriptionItemId!),
-          eq(schema.writeLog.periodStart, periodStart)
+          eq(writeLog.tenantId, tenantId),
+          eq(writeLog.stripeAccount, stripeAccount),
+          eq(writeLog.subscriptionItemId, subscriptionItemId!),
+          eq(writeLog.periodStart, periodStart)
         )
       )
       .limit(1);
 
-    const pushedTotal = writeLog ? parseFloat(writeLog.pushedTotal) : 0;
+    const pushedTotal = writeLogRow ? parseFloat(writeLogRow.pushedTotal) : 0;
     const delta = localTotal - pushedTotal;
 
     // Skip if no delta
@@ -225,9 +226,9 @@ export class StripeWriterWorker {
       );
 
       // Update write log
-      if (writeLog) {
+      if (writeLogRow) {
         await db
-          .update(schema.writeLog)
+          .update(writeLog)
           .set({
             pushedTotal: localTotal.toString(),
             lastRequestId: idempotencyKey,
@@ -235,15 +236,15 @@ export class StripeWriterWorker {
           })
           .where(
             and(
-              eq(schema.writeLog.tenantId, tenantId),
-              eq(schema.writeLog.stripeAccount, stripeAccount),
-              eq(schema.writeLog.subscriptionItemId, subscriptionItemId!),
-              eq(schema.writeLog.periodStart, periodStart)
+              eq(writeLog.tenantId, tenantId),
+              eq(writeLog.stripeAccount, stripeAccount),
+              eq(writeLog.subscriptionItemId, subscriptionItemId!),
+              eq(writeLog.periodStart, periodStart)
             )
           );
       } else {
         await db
-          .insert(schema.writeLog)
+          .insert(writeLog)
           .values({
             tenantId,
             stripeAccount,

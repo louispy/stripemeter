@@ -5,7 +5,7 @@
 import { eq, and, gte, lte, sql as sqlTag } from 'drizzle-orm';
 import { db } from '../client';
 import { events, type Event, type NewEvent } from '../schema/events';
-import type { UsageEvent } from '@stripemeter/core';
+
 
 export class EventsRepository {
   /**

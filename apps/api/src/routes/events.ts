@@ -9,9 +9,8 @@ import {
   type IngestEventRequestInput,
   type IngestEventResponse 
 } from '@stripemeter/core';
-import { EventsRepository } from '@stripemeter/database/src/repositories/events.repository';
+import { EventsRepository, redis } from '@stripemeter/database';
 import { Queue } from 'bullmq';
-import { redis } from '@stripemeter/database/src/client';
 
 const eventsRepo = new EventsRepository();
 
@@ -91,7 +90,7 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
       return reply.status(400).send({
         accepted: 0,
         duplicates: 0,
-        errors: validationResult.error.errors.map((err, index) => ({
+        errors: validationResult.error.errors.map((err: any, index: number) => ({
           index,
           error: err.message,
         })),
@@ -132,6 +131,8 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
         eventsToInsert.push({
           ...event,
           idempotencyKey,
+          quantity: event.quantity.toString(),
+          ts: new Date(event.ts),
           source: event.source || 'http',
         });
       } catch (error) {
@@ -211,7 +212,7 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
-  }, async (request, reply) => {
+  }, async (_request, reply) => {
     // TODO: Implement backfill logic
     reply.status(501).send({ 
       error: 'Not Implemented',
