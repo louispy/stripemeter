@@ -17,7 +17,7 @@
     "dev": "tsup --watch",
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run -c ./vitest.config.mjs"
   },
   "dependencies": {
     "zod": "^3.22.4"
