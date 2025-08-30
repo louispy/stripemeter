@@ -5,7 +5,8 @@
 import { FastifyPluginAsync } from 'fastify';
 import type { UsageResponse, ProjectionResponse } from '@stripemeter/core';
 import { getCurrentPeriod } from '@stripemeter/core';
-import { db, counters, priceMappings } from '@stripemeter/database';
+import { db, counters, priceMappings, redis } from '@stripemeter/database';
+import { InvoiceSimulator } from '@stripemeter/pricing-lib';
 import { and, eq } from 'drizzle-orm';
 
 export const usageRoutes: FastifyPluginAsync = async (server) => {
@@ -76,7 +77,15 @@ export const usageRoutes: FastifyPluginAsync = async (server) => {
     const { start, end } = getCurrentPeriod('monthly');
 
     try {
-      // Fetch counters for current period
+      // Try Redis cache first
+      const cacheKey = `usage:${tenantId}:${customerRef}:${start}`;
+      const cached = await redis.get(cacheKey).catch(() => null);
+      if (cached) {
+        const metrics = JSON.parse(cached) as UsageResponse['metrics'];
+        return reply.send({ customerRef, period: { start, end }, metrics, alerts: [] });
+      }
+
+      // Fetch counters for current period from DB
       const rows = await db
         .select({
           metric: counters.metric,
@@ -98,6 +107,9 @@ export const usageRoutes: FastifyPluginAsync = async (server) => {
         current: Number(r.aggSum ?? 0),
         unit: 'unit',
       }));
+
+      // Cache metrics briefly
+      await redis.set(cacheKey, JSON.stringify(metrics), 'EX', 30).catch(() => {});
 
       reply.send({ customerRef, period: { start, end }, metrics, alerts: [] });
     } catch (_err) {
@@ -212,13 +224,25 @@ export const usageRoutes: FastifyPluginAsync = async (server) => {
         quantities.set(row.metric, q);
       }
 
-      // Build line items; unitPrice/total are 0 by default (Stripe pricing lookup not wired here)
+      // Build invoice via pricing-lib (flat model placeholders until pricing is wired)
       const currency = mappings.find((m) => m.currency)?.currency || 'USD';
-      const lineItems = Array.from(quantities.entries()).map(([metric, quantity]) => ({
+      const usageItems = Array.from(quantities.entries()).map(([metric, quantity]) => ({
         metric,
         quantity,
-        unitPrice: 0,
-        total: 0,
+        priceConfig: { model: 'flat', currency, unitPrice: 0 },
+      }));
+      const simulator = new InvoiceSimulator();
+      const invoice = simulator.simulate({
+        customerId: customerRef,
+        periodStart: period.start,
+        periodEnd: period.end,
+        usageItems,
+      });
+      const lineItems = invoice.lineItems.map((li) => ({
+        metric: li.metric,
+        quantity: li.quantity,
+        unitPrice: li.unitPrice,
+        total: li.subtotal,
       }));
 
       const lastUpdate =
@@ -233,9 +257,9 @@ export const usageRoutes: FastifyPluginAsync = async (server) => {
         periodStart: period.start,
         periodEnd: period.end,
         lineItems,
-        subtotal: 0,
-        credits: 0,
-        total: 0,
+        subtotal: invoice.subtotal,
+        credits: invoice.credits,
+        total: invoice.total,
         currency,
         freshness: { lastUpdate, staleness: 0 },
       });
