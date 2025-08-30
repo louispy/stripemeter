@@ -141,6 +141,23 @@ Expected:
 - Blocked: requests return 402 Payment Required
 - After resolve: requests succeed normally
 
+### **Prometheus Metrics**
+- Exposes `/metrics` for Prometheus scrape with counters and histograms
+- Metrics include: `http_requests_total`, `http_request_duration_ms`, `usage_events_tracked_total`, `dunning_state_transitions_total`
+
+#### Try it locally
+```bash
+cd demo/cloudapi-saas
+npm i
+node src/server.js
+
+# in another terminal
+curl -s http://localhost:4000/metrics | head
+```
+Example queries:
+- `sum by (route, method) (rate(http_requests_total[1m]))`
+- `histogram_quantile(0.95, sum(rate(http_request_duration_ms_bucket[5m])) by (le, route))`
+
 ### **Credits Lifecycle (Entitlements)**
 - Issues credits (e.g., 50k API calls), burns FIFO by usage, handles expiry and optional rollover
 - Shows remaining, burned, expired, rolled credits, and overage beyond credits
