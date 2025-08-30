@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+
+pnpm --filter @stripemeter/core build || exit 1
+pnpm --filter @stripemeter/core test || exit 1

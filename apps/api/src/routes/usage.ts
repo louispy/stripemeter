@@ -6,7 +6,7 @@ import { FastifyPluginAsync } from 'fastify';
 import type { UsageResponse, ProjectionResponse } from '@stripemeter/core';
 import { getCurrentPeriod } from '@stripemeter/core';
 import { db, counters, priceMappings, redis } from '@stripemeter/database';
-import { InvoiceSimulator } from '@stripemeter/pricing-lib';
+import { InvoiceSimulator, type UsageLineItem, type PriceConfig } from '@stripemeter/pricing-lib';
 import { and, eq } from 'drizzle-orm';
 
 export const usageRoutes: FastifyPluginAsync = async (server) => {
@@ -226,10 +226,11 @@ export const usageRoutes: FastifyPluginAsync = async (server) => {
 
       // Build invoice via pricing-lib (flat model placeholders until pricing is wired)
       const currency = mappings.find((m) => m.currency)?.currency || 'USD';
-      const usageItems = Array.from(quantities.entries()).map(([metric, quantity]) => ({
+      const defaultPriceConfig: PriceConfig = { model: 'flat', currency, unitPrice: 0 };
+      const usageItems: UsageLineItem[] = Array.from(quantities.entries()).map(([metric, quantity]) => ({
         metric,
         quantity,
-        priceConfig: { model: 'flat', currency, unitPrice: 0 },
+        priceConfig: defaultPriceConfig,
       }));
       const simulator = new InvoiceSimulator();
       const invoice = simulator.simulate({
