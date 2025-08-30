@@ -122,6 +122,25 @@ npm start
 - **Bulk operations**: Simulate high-volume usage
 - **Multi-metric tracking**: Calls + data + storage
 
+### **Dunning Lab (Failed Payment Scenarios)**
+- Simulates lifecycle: past_due → email_sent → retry_scheduled → blocked → recovered
+- Adds headers on at-risk requests and blocks when in hard dunning
+- Records dunning events via `billing_event` metric for auditability
+
+#### Run the Dunning Lab
+```bash
+cd demo/cloudapi-saas
+npm run dev   # in one terminal
+
+# in another terminal
+npm run dunning            # defaults: user=alice speed=1s
+node scripts/dunning-lab.js --user bob --speed 2
+```
+Expected:
+- Before block: requests succeed with `X-Dunning-Warning: true`
+- Blocked: requests return 402 Payment Required
+- After resolve: requests succeed normally
+
 ### **Customer Portal**
 - **Usage dashboard** with charts and metrics
 - **Cost projections** based on current usage

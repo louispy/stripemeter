@@ -7,7 +7,8 @@
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "seed": "node scripts/seed-demo-data.js",
-    "simulate": "node scripts/usage-simulator.js"
+    "simulate": "node scripts/usage-simulator.js",
+    "dunning": "node scripts/dunning-lab.js --user alice --speed 1"
   },
   "keywords": ["stripemeter", "demo", "usage-based-billing", "api"],
   "author": "StripeMeter Team",
