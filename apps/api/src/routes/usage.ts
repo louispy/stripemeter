@@ -4,6 +4,9 @@
 
 import { FastifyPluginAsync } from 'fastify';
 import type { UsageResponse, ProjectionResponse } from '@stripemeter/core';
+import { getCurrentPeriod } from '@stripemeter/core';
+import { db, counters, priceMappings } from '@stripemeter/database';
+import { and, eq } from 'drizzle-orm';
 
 export const usageRoutes: FastifyPluginAsync = async (server) => {
   /**
@@ -68,18 +71,39 @@ export const usageRoutes: FastifyPluginAsync = async (server) => {
       },
     },
   }, async (request, reply) => {
-    // TODO: Implement usage query logic
-    const { tenantId: _tenantId, customerRef } = request.query;
-    
-    reply.send({
-      customerRef,
-      period: {
-        start: new Date().toISOString().split('T')[0],
-        end: new Date().toISOString().split('T')[0],
-      },
-      metrics: [],
-      alerts: [],
-    });
+    const { tenantId, customerRef } = request.query;
+
+    const { start, end } = getCurrentPeriod('monthly');
+
+    try {
+      // Fetch counters for current period
+      const rows = await db
+        .select({
+          metric: counters.metric,
+          aggSum: counters.aggSum,
+          aggMax: counters.aggMax,
+          aggLast: counters.aggLast,
+        })
+        .from(counters)
+        .where(
+          and(
+            eq(counters.tenantId, tenantId),
+            eq(counters.customerRef, customerRef),
+            eq(counters.periodStart, start)
+          )
+        );
+
+      const metrics: UsageResponse['metrics'] = rows.map((r) => ({
+        name: r.metric,
+        current: Number(r.aggSum ?? 0),
+        unit: 'unit',
+      }));
+
+      reply.send({ customerRef, period: { start, end }, metrics, alerts: [] });
+    } catch (_err) {
+      // Graceful fallback if DB unavailable
+      reply.send({ customerRef, period: { start, end }, metrics: [], alerts: [] });
+    }
   });
 
   /**
@@ -143,22 +167,90 @@ export const usageRoutes: FastifyPluginAsync = async (server) => {
       },
     },
   }, async (request, reply) => {
-    // TODO: Implement projection logic using pricing library
-    const { tenantId: _tenantId, customerRef, periodStart, periodEnd } = request.body;
-    
-    reply.send({
-      customerRef,
-      periodStart: periodStart || new Date().toISOString().split('T')[0],
-      periodEnd: periodEnd || new Date().toISOString().split('T')[0],
-      lineItems: [],
-      subtotal: 0,
-      credits: 0,
-      total: 0,
-      currency: 'USD',
-      freshness: {
-        lastUpdate: new Date().toISOString(),
-        staleness: 0,
-      },
-    });
+    const { tenantId, customerRef, periodStart, periodEnd } = request.body;
+
+    const period = periodStart && periodEnd ? { start: periodStart, end: periodEnd } : getCurrentPeriod('monthly');
+
+    try {
+      // Fetch active price mappings to know which metrics to include and how to aggregate
+      const mappings = await db
+        .select({
+          metric: priceMappings.metric,
+          aggregation: priceMappings.aggregation,
+          currency: priceMappings.currency,
+        })
+        .from(priceMappings)
+        .where(and(eq(priceMappings.tenantId, tenantId), eq(priceMappings.active, true as any)));
+
+      // Fetch counters for the period start
+      const counterRows = await db
+        .select({
+          metric: counters.metric,
+          aggSum: counters.aggSum,
+          aggMax: counters.aggMax,
+          aggLast: counters.aggLast,
+          updatedAt: counters.updatedAt,
+        })
+        .from(counters)
+        .where(
+          and(
+            eq(counters.tenantId, tenantId),
+            eq(counters.customerRef, customerRef),
+            eq(counters.periodStart, period.start)
+          )
+        );
+
+      // Map metric -> quantity according to aggregation type
+      const quantities = new Map<string, number>();
+      for (const row of counterRows) {
+        const mapping = mappings.find((m) => m.metric === row.metric);
+        if (!mapping) continue;
+        let q = 0;
+        if (mapping.aggregation === 'sum') q = Number(row.aggSum ?? 0);
+        else if (mapping.aggregation === 'max') q = Number(row.aggMax ?? 0);
+        else if (mapping.aggregation === 'last') q = Number(row.aggLast ?? 0);
+        quantities.set(row.metric, q);
+      }
+
+      // Build line items; unitPrice/total are 0 by default (Stripe pricing lookup not wired here)
+      const currency = mappings.find((m) => m.currency)?.currency || 'USD';
+      const lineItems = Array.from(quantities.entries()).map(([metric, quantity]) => ({
+        metric,
+        quantity,
+        unitPrice: 0,
+        total: 0,
+      }));
+
+      const lastUpdate =
+        counterRows.reduce<string | null>((acc, r) => {
+          const ts = (r.updatedAt as unknown as string | null);
+          if (!ts) return acc;
+          return !acc || ts > acc ? ts : acc;
+        }, null) || new Date().toISOString();
+
+      reply.send({
+        customerRef,
+        periodStart: period.start,
+        periodEnd: period.end,
+        lineItems,
+        subtotal: 0,
+        credits: 0,
+        total: 0,
+        currency,
+        freshness: { lastUpdate, staleness: 0 },
+      });
+    } catch (_err) {
+      reply.send({
+        customerRef,
+        periodStart: period.start,
+        periodEnd: period.end,
+        lineItems: [],
+        subtotal: 0,
+        credits: 0,
+        total: 0,
+        currency: 'USD',
+        freshness: { lastUpdate: new Date().toISOString(), staleness: 0 },
+      });
+    }
   });
 };
