@@ -31,6 +31,54 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
+// In-memory dunning state per customer for demo purposes
+// States: active -> past_due -> email_sent -> retry_scheduled -> blocked -> recovered
+const dunningStateByCustomer = new Map();
+
+function getUserCustomerRef(user) {
+  return user?.stripeCustomerId;
+}
+
+async function recordDunningEvent(user, stage) {
+  try {
+    await stripeMeter.track({
+      metric: 'billing_event',
+      customerRef: getUserCustomerRef(user),
+      quantity: 1,
+      meta: { type: 'dunning', stage },
+    });
+  } catch (err) {
+    console.error('Failed to record dunning event', stage, err?.message);
+  }
+}
+
+// Guard requests based on dunning state
+const dunningGuard = (req, res, next) => {
+  // Always allow Dunning Lab endpoints themselves
+  if (req.path && req.path.startsWith('/demo/dunning')) {
+    return next();
+  }
+  const customerRef = getUserCustomerRef(req.user);
+  const state = dunningStateByCustomer.get(customerRef)?.state || 'active';
+
+  // Expose current state to clients for demo visibility
+  res.setHeader('X-Dunning-State', state);
+
+  if (state === 'blocked') {
+    return res.status(402).json({
+      error: 'Payment Required',
+      message: 'Account is temporarily blocked due to failed payment. Please update payment method.',
+      dunning: { state },
+    });
+  }
+
+  if (state === 'past_due' || state === 'email_sent' || state === 'retry_scheduled') {
+    res.setHeader('X-Dunning-Warning', 'true');
+  }
+
+  return next();
+};
+
 // Demo authentication middleware
 const authenticateDemo = (req, res, next) => {
   const apiKey = req.header('X-API-Key');
@@ -118,8 +166,8 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Demo API endpoints (require authentication and track usage)
-app.use('/api', authenticateDemo, trackUsage);
+// Demo API endpoints (require authentication, dunning guard, and track usage)
+app.use('/api', authenticateDemo, dunningGuard, trackUsage);
 
 // Get user info and current usage
 app.get('/api/user', async (req, res) => {
@@ -258,6 +306,84 @@ app.post('/api/demo/simulate-usage', async (req, res) => {
   
   // Run simulation in background
   simulateUsage(req.user, pattern, duration, intensity);
+});
+
+// Dunning Lab endpoints (for demo purposes)
+app.post('/api/demo/dunning/start', async (req, res) => {
+  const { speedSeconds = 3 } = req.body || {};
+  const user = req.user;
+  const customerRef = getUserCustomerRef(user);
+
+  // Initialize state machine
+  const now = new Date();
+  const state = {
+    state: 'past_due',
+    history: [{ state: 'past_due', at: now.toISOString() }],
+    startedAt: now.toISOString(),
+    speedSeconds,
+  };
+  dunningStateByCustomer.set(customerRef, state);
+  await recordDunningEvent(user, 'past_due');
+
+  // Schedule email notification
+  setTimeout(async () => {
+    const s = dunningStateByCustomer.get(customerRef);
+    if (!s || s.state === 'recovered') return;
+    s.state = 'email_sent';
+    s.history.push({ state: 'email_sent', at: new Date().toISOString() });
+    await recordDunningEvent(user, 'email_sent');
+  }, speedSeconds * 1000);
+
+  // Schedule retry
+  setTimeout(async () => {
+    const s = dunningStateByCustomer.get(customerRef);
+    if (!s || s.state === 'recovered') return;
+    s.state = 'retry_scheduled';
+    s.history.push({ state: 'retry_scheduled', at: new Date().toISOString() });
+    await recordDunningEvent(user, 'retry_scheduled');
+  }, speedSeconds * 2000);
+
+  // Schedule block (hard cap) after failed retry
+  setTimeout(async () => {
+    const s = dunningStateByCustomer.get(customerRef);
+    if (!s || s.state === 'recovered') return;
+    s.state = 'blocked';
+    s.history.push({ state: 'blocked', at: new Date().toISOString() });
+    await recordDunningEvent(user, 'blocked');
+  }, speedSeconds * 3000);
+
+  res.json({
+    message: 'Dunning scenario started',
+    customerRef,
+    speedSeconds,
+    nextStages: ['email_sent', 'retry_scheduled', 'blocked'],
+  });
+});
+
+app.post('/api/demo/dunning/resolve', async (req, res) => {
+  const user = req.user;
+  const customerRef = getUserCustomerRef(user);
+  const s = dunningStateByCustomer.get(customerRef);
+  const now = new Date();
+  if (!s) {
+    dunningStateByCustomer.set(customerRef, {
+      state: 'recovered',
+      history: [{ state: 'recovered', at: now.toISOString() }],
+      startedAt: now.toISOString(),
+      speedSeconds: 0,
+    });
+  } else {
+    s.state = 'recovered';
+    s.history.push({ state: 'recovered', at: now.toISOString() });
+  }
+  await recordDunningEvent(user, 'recovered');
+  res.json({ message: 'Account recovered', customerRef });
+});
+
+app.get('/api/demo/dunning/status', (req, res) => {
+  const customerRef = getUserCustomerRef(req.user);
+  const s = dunningStateByCustomer.get(customerRef) || { state: 'active', history: [] };
+  res.json({ customerRef, ...s });
 });
 
 // Background usage simulation
