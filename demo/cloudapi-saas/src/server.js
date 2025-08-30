@@ -8,6 +8,7 @@ require('dotenv').config();
 
 const StripeMeterClient = require('./stripemeter-client');
 const { DEMO_USERS, PRICING_PLANS } = require('./demo-config');
+const client = require('prom-client');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -18,10 +19,63 @@ const stripeMeter = new StripeMeterClient({
   tenantId: process.env.TENANT_ID || 'demo-tenant-001'
 });
 
+// Prometheus registry and metrics
+const registry = new client.Registry();
+client.collectDefaultMetrics({ register: registry });
+
+const httpRequestsTotal = new client.Counter({
+  name: 'http_requests_total',
+  help: 'Total HTTP requests',
+  labelNames: ['method', 'route', 'status']
+});
+
+const httpRequestDurationMs = new client.Histogram({
+  name: 'http_request_duration_ms',
+  help: 'Duration of HTTP requests in ms',
+  labelNames: ['method', 'route', 'status'],
+  buckets: [5, 10, 25, 50, 100, 250, 500, 1000, 2000, 5000]
+});
+
+const usageEventsTrackedTotal = new client.Counter({
+  name: 'usage_events_tracked_total',
+  help: 'Total usage events tracked',
+  labelNames: ['metric']
+});
+
+const dunningStateTransitionsTotal = new client.Counter({
+  name: 'dunning_state_transitions_total',
+  help: 'Total dunning state transitions',
+  labelNames: ['state']
+});
+
+const simulatorCallsTotal = new client.Counter({
+  name: 'simulator_calls_total',
+  help: 'Total simulated API calls',
+  labelNames: ['pattern', 'intensity']
+});
+
+registry.registerMetric(httpRequestsTotal);
+registry.registerMetric(httpRequestDurationMs);
+registry.registerMetric(usageEventsTrackedTotal);
+registry.registerMetric(dunningStateTransitionsTotal);
+registry.registerMetric(simulatorCallsTotal);
+
 // Middleware
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
+
+// Global HTTP metrics middleware
+app.use((req, res, next) => {
+  const route = req.path || 'unknown';
+  const endTimer = httpRequestDurationMs.startTimer({ method: req.method, route });
+  res.on('finish', () => {
+    const labels = { method: req.method, route, status: String(res.statusCode) };
+    httpRequestsTotal.inc(labels, 1);
+    endTimer({ status: String(res.statusCode) });
+  });
+  next();
+});
 
 // Rate limiting (demo purposes)
 const limiter = rateLimit({
@@ -47,6 +101,7 @@ async function recordDunningEvent(user, stage) {
       quantity: 1,
       meta: { type: 'dunning', stage },
     });
+    dunningStateTransitionsTotal.inc({ state: stage });
   } catch (err) {
     console.error('Failed to record dunning event', stage, err?.message);
   }
@@ -112,6 +167,7 @@ const trackUsage = async (req, res, next) => {
         plan: req.user.plan
       }
     });
+    usageEventsTrackedTotal.inc({ metric: 'api_calls' });
   } catch (error) {
     console.error('Usage tracking error:', error);
     // Don't fail the request if tracking fails
@@ -134,6 +190,7 @@ const trackUsage = async (req, res, next) => {
             response_code: res.statusCode
           }
         });
+        usageEventsTrackedTotal.inc({ metric: 'compute_time' });
       }
 
       // Track data processed (in bytes)
@@ -146,6 +203,7 @@ const trackUsage = async (req, res, next) => {
             endpoint: req.path
           }
         });
+        usageEventsTrackedTotal.inc({ metric: 'data_processed' });
       }
     } catch (error) {
       console.error('Additional usage tracking error:', error);
@@ -164,6 +222,17 @@ app.get('/health', (req, res) => {
     service: 'CloudAPI Demo',
     timestamp: new Date().toISOString()
   });
+});
+
+// Prometheus metrics endpoint
+app.get('/metrics', async (_req, res) => {
+  try {
+    res.set('Content-Type', registry.contentType);
+    const metrics = await registry.metrics();
+    res.status(200).send(metrics);
+  } catch (err) {
+    res.status(500).send('Failed to collect metrics');
+  }
 });
 
 // Demo API endpoints (require authentication, dunning guard, and track usage)
@@ -439,18 +508,19 @@ app.use('*', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 CloudAPI Demo Server running on http://localhost:${PORT}`);
-  console.log(`📊 StripeMeter API: ${process.env.STRIPEMETER_API_URL || 'http://localhost:3000'}`);
-  console.log(`🏢 Tenant ID: ${process.env.TENANT_ID || 'demo-tenant-001'}`);
-  console.log(`\n📖 API Documentation:`);
+  console.log(`CloudAPI Demo Server running on http://localhost:${PORT}`);
+  console.log(`StripeMeter API: ${process.env.STRIPEMETER_API_URL || 'http://localhost:3000'}`);
+  console.log(`Tenant ID: ${process.env.TENANT_ID || 'demo-tenant-001'}`);
+  console.log(`\nAPI Documentation:`);
   console.log(`   GET  /health                    - Health check`);
+  console.log(`   GET  /metrics                   - Prometheus metrics`);
   console.log(`   GET  /api/user                  - User info & usage`);
   console.log(`   GET  /api/data/:id              - Get data by ID`);
   console.log(`   POST /api/process               - Process data`);
   console.log(`   POST /api/bulk                  - Bulk operations`);
   console.log(`   GET  /api/analytics             - Analytics (Pro+)`);
   console.log(`   POST /api/demo/simulate-usage   - Simulate usage`);
-  console.log(`\n🔑 Demo API Keys:`);
+  console.log(`\nDemo API Keys:`);
   DEMO_USERS.forEach(user => {
     console.log(`   ${user.name} (${user.plan}): ${user.apiKey}`);
   });
