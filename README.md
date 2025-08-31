@@ -2,6 +2,8 @@
 
 > **The open-source usage metering platform that eliminates billing surprises**
 
+[![CI](https://github.com/geminimir/stripemeter/actions/workflows/ci.yml/badge.svg)](https://github.com/geminimir/stripemeter/actions/workflows/ci.yml)
+[![GitHub release](https://img.shields.io/github/v/release/geminimir/stripemeter)](https://github.com/geminimir/stripemeter/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
 [![Community](https://img.shields.io/badge/Join-Community-blue)](https://github.com/geminimir/stripemeter/discussions)
