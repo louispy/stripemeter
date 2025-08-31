@@ -17,7 +17,9 @@
     "dev": "tsup --watch",
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:unit": "vitest run src/calculators/",
+    "test:integration": "vitest run src/__tests__/"
   },
   "dependencies": {
     "@stripemeter/core": "workspace:*",

@@ -33,7 +33,7 @@ jobs:
         run: pnpm run test:simulator:unit
 
       - name: Integration tests (smoke subset)
-        run: pnpm --filter @stripemeter/pricing-lib test -- packages/pricing-lib/src/__tests__/simulator.integration.test.ts
+        run: pnpm run test:simulator:integration
 
       - name: Upload coverage (optional)
         if: ${{ always() }}
