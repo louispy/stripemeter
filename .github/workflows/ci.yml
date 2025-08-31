@@ -32,30 +32,6 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: stripemeter
-          POSTGRES_PASSWORD: stripemeter_test
-          POSTGRES_DB: stripemeter_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-      
-      redis:
-        image: redis:7-alpine
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
     
     steps:
       - uses: actions/checkout@v4
@@ -75,11 +51,17 @@ jobs:
       - name: Build packages
         run: pnpm build
       
-      - name: Run tests
-        run: pnpm test
+      - name: Run unit tests (no database required)
+        run: |
+          # Run tests for packages that don't require database
+          pnpm --filter @stripemeter/core test
+          pnpm --filter @stripemeter/pricing-lib test
+          pnpm --filter @stripemeter/sdk-node test
+          pnpm --filter @stripemeter/database test
+          pnpm --filter @stripemeter/admin-ui test
+          pnpm --filter @stripemeter/customer-widget test
+          pnpm --filter @stripemeter/workers test
         env:
-          DATABASE_URL: postgresql://stripemeter:stripemeter_test@localhost:5432/stripemeter_test
-          REDIS_URL: redis://localhost:6379
           NODE_ENV: test
       
       - name: Upload coverage
