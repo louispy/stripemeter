@@ -20,6 +20,9 @@ importers:
       eslint:
         specifier: ^8.56.0
         version: 8.57.1
+      husky:
+        specifier: ^9.0.11
+        version: 9.1.7
       prettier:
         specifier: ^3.2.4
         version: 3.6.2
@@ -129,6 +132,9 @@ importers:
       dotenv:
         specifier: ^16.3.1
         version: 16.6.1
+      drizzle-orm:
+        specifier: ^0.29.3
+        version: 0.29.5(@types/react@18.3.23)(postgres@3.4.7)(react@18.3.1)
       fastify:
         specifier: ^4.25.2
         version: 4.29.1
@@ -2310,6 +2316,11 @@ packages:
   human-signals@5.0.0:
     resolution: {integrity: sha512-AXcZb6vzzrFAUE61HnN4mpLqd/cSIwNQjtNWR0euPm6y0iqx3G4gOXaIDdtdDwZmhwe82LA6+zinmW4UBWVePQ==}
     engines: {node: '>=16.17.0'}
+
+  husky@9.1.7:
+    resolution: {integrity: sha512-5gs5ytaNjBrh5Ow3zrvdUUY+0VxIuWVL4i9irt6friV+BqdCfmV11CQTWMiBYWHbXhco+J1kHfTOUkePhCDvMA==}
+    engines: {node: '>=18'}
+    hasBin: true
 
   ieee754@1.2.1:
     resolution: {integrity: sha512-dcyqhDvX1C46lXZcVqCpK+FtMRQVdIMN6/Df5js2zouUsqG7I6sFxitIC+7KYK29KdXOLHdu9zL4sFnoVQnqaA==}
@@ -5210,6 +5221,8 @@ snapshots:
       toidentifier: 1.0.1
 
   human-signals@5.0.0: {}
+
+  husky@9.1.7: {}
 
   ieee754@1.2.1: {}
 

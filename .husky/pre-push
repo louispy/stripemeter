@@ -1,0 +1,51 @@
+#!/usr/bin/env sh
+
+set -e
+
+# Build core first to satisfy references
+pnpm --filter @stripemeter/core build
+
+# Try to start local services for integration tests
+started_services=0
+if command -v docker-compose >/dev/null 2>&1; then
+  docker-compose up -d postgres redis && started_services=1 || true
+elif docker compose version >/dev/null 2>&1; then
+  docker compose up -d postgres redis && started_services=1 || true
+else
+  echo "Docker Compose not found; skipping integration services"
+fi
+
+# Export env for tests
+export DATABASE_URL="postgresql://stripemeter:stripemeter_dev@localhost:5432/stripemeter"
+export REDIS_URL="redis://localhost:6379"
+export NODE_ENV="test"
+
+# Build all packages
+pnpm build
+
+# Required tests
+pnpm --filter @stripemeter/core test
+pnpm --filter @stripemeter/pricing-lib test
+
+# Service-dependent tests only if services are running
+if [ "$started_services" = "1" ]; then
+  pnpm --filter @stripemeter/api test || true
+  pnpm --filter @stripemeter/database test || true
+  pnpm --filter @stripemeter/workers test || true
+else
+  echo "Skipping service-dependent tests (@stripemeter/api, database, workers)"
+fi
+
+# Optional frontend/sdk tests
+pnpm --filter @stripemeter/admin-ui test || true
+pnpm --filter @stripemeter/customer-widget test || true
+pnpm --filter @stripemeter/sdk-node test || true
+
+# Tear down services if we started them
+if [ "$started_services" = "1" ]; then
+  if command -v docker-compose >/dev/null 2>&1; then
+    docker-compose down || true
+  elif docker compose version >/dev/null 2>&1; then
+    docker compose down || true
+  fi
+fi

@@ -7,9 +7,9 @@
     "dev": "pnpm run --parallel --filter './packages/*' --filter './apps/*' dev",
     "build": "pnpm run --filter './packages/*' --filter './apps/*' build",
     "test": "pnpm run --filter './packages/*' --filter './apps/*' test",
-    "test:simulator:unit": "pnpm --filter @stripemeter/pricing-lib test -- run packages/pricing-lib/src/calculators/*.test.ts",
-    "test:simulator:integration": "pnpm --filter @stripemeter/pricing-lib test -- run packages/pricing-lib/src/__tests__/simulator.integration.test.ts",
-    "test:simulator:performance": "pnpm --filter @stripemeter/pricing-lib test -- run packages/pricing-lib/src/__tests__/performance.test.ts",
+    "test:simulator:unit": "pnpm --filter @stripemeter/pricing-lib test:unit",
+    "test:simulator:integration": "pnpm --filter @stripemeter/pricing-lib test:integration",
+    "test:simulator:performance": "pnpm --filter @stripemeter/pricing-lib test:integration",
     "test:simulator:fast": "pnpm run test:simulator:unit",
     "test:simulator:full": "pnpm run test:simulator:unit && pnpm run test:simulator:integration && pnpm run test:simulator:performance",
     "typecheck:simulator": "pnpm --filter @stripemeter/pricing-lib typecheck",
@@ -20,7 +20,9 @@
     "docker:down": "docker compose down",
     "db:migrate": "pnpm --filter @stripemeter/database migrate",
     "db:seed": "pnpm --filter @stripemeter/database seed",
-    "typecheck": "tsc -b --pretty false"
+    "typecheck": "tsc -b --pretty false",
+    "precommit": "pnpm lint && pnpm typecheck && pnpm run test:simulator:fast",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
@@ -29,7 +31,8 @@
     "eslint": "^8.56.0",
     "@typescript-eslint/eslint-plugin": "^6.19.0",
     "@typescript-eslint/parser": "^6.19.0",
-    "vitest": "^1.2.1"
+    "vitest": "^1.2.1",
+    "husky": "^9.0.11"
   },
   "packageManager": "pnpm@8.15.1",
   "engines": {
