@@ -1,0 +1,24 @@
+{
+  "metadata": { "name": "flat-package", "version": "1" },
+  "inputs": {
+    "customerId": "cust_2",
+    "periodStart": "2024-01-01",
+    "periodEnd": "2024-01-31",
+    "usageItems": [
+      {
+        "metric": "seats",
+        "quantity": 7,
+        "priceConfig": { "model": "flat", "currency": "USD", "unitPrice": 10, "minimumCharge": 50 }
+      },
+      {
+        "metric": "bundles",
+        "quantity": 13,
+        "priceConfig": { "model": "package", "currency": "USD", "unitPrice": 5, "packageSize": 4 }
+      }
+    ],
+    "taxRate": 10
+  },
+  "expected": { "total": 0 }
+}
+
+

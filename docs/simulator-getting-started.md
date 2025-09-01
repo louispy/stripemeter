@@ -336,3 +336,60 @@ segments.forEach(segment => {
 - 🐛 [Report Issues](https://github.com/geminimir/stripemeter/issues)
 - 💬 [Community Discussions](https://github.com/geminimir/stripemeter/discussions)
 - 📧 [Support](mailto:support@stripemeter.io)
+
+## Simulator CLI (sim) quickstart
+
+Use the local CLI to validate scenarios, run them offline using the pricing engine, and report diffs against expected artifacts.
+
+```bash
+# Build workspace (first time or after changes)
+pnpm build
+
+# Validate all scenarios under examples/
+pnpm run sim validate --dir examples
+
+# Run scenarios and write results to results/
+pnpm run sim run --dir examples --out results --seed 42
+
+# Record the current results as expected artifacts next to scenarios
+pnpm run sim run --dir examples --out results --record
+
+# Diff actual results vs expected and fail on differences
+pnpm run sim report --dir examples --results results --fail-on-diff
+```
+
+- Scenarios live in `scenarios/` or any folder you specify (see `examples/`).
+- Scenario files use `.sim.json` extension and minimally require `metadata`, `inputs.usageItems`, and an `expected.total` to assert.
+- You can set per-scenario tolerances via `tolerances.absolute` and `tolerances.relative` for numeric diffs.
+
+Example scenario skeleton:
+
+```json
+{
+  "metadata": { "name": "tiered-basic", "version": "1" },
+  "inputs": {
+    "customerId": "cust_1",
+    "periodStart": "2024-01-01",
+    "periodEnd": "2024-01-31",
+    "usageItems": [
+      {
+        "metric": "requests",
+        "quantity": 350,
+        "priceConfig": {
+          "model": "tiered",
+          "currency": "USD",
+          "tiers": [
+            { "upTo": 100, "unitPrice": 0.1 },
+            { "upTo": 500, "unitPrice": 0.08 },
+            { "upTo": null, "unitPrice": 0.05 }
+          ]
+        }
+      }
+    ]
+  },
+  "expected": { "total": 28.0 },
+  "tolerances": { "absolute": 0.001, "relative": 0.0005 }
+}
+```
+
+CI runs validate → run → report for `examples/`. Place your own scenarios in `scenarios/` and mirror the same commands locally.

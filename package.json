@@ -22,7 +22,8 @@
     "db:seed": "pnpm --filter @stripemeter/database seed",
     "typecheck": "tsc -b --pretty false",
     "precommit": "pnpm lint && pnpm typecheck && pnpm run test:simulator:fast",
-    "prepare": "husky"
+    "prepare": "husky",
+    "sim": "node packages/simulator-cli/dist/index.js"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

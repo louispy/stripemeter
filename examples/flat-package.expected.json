@@ -1,0 +1,27 @@
+{
+  "customerId": "cust_2",
+  "periodStart": "2024-01-01",
+  "periodEnd": "2024-01-31",
+  "lineItems": [
+    {
+      "metric": "seats",
+      "quantity": 7,
+      "unitPrice": 10,
+      "subtotal": 70,
+      "description": "7 units of seats"
+    },
+    {
+      "metric": "bundles",
+      "quantity": 13,
+      "unitPrice": 5,
+      "subtotal": 20,
+      "description": "13 units of bundles"
+    }
+  ],
+  "subtotal": 90,
+  "credits": 0,
+  "adjustments": 0,
+  "tax": 9,
+  "total": 99,
+  "currency": "USD"
+}

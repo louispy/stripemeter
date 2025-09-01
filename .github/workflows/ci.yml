@@ -61,6 +61,11 @@ jobs:
           pnpm --filter @stripemeter/admin-ui test
           pnpm --filter @stripemeter/customer-widget test
           pnpm --filter @stripemeter/workers test
+          # Simulator CLI scenario checks
+          pnpm build
+          pnpm run sim validate --dir examples
+          pnpm run sim run --dir examples --out results --seed 42
+          pnpm run sim report --dir examples --results results --fail-on-diff
         env:
           NODE_ENV: test
       

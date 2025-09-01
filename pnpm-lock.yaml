@@ -377,6 +377,31 @@ importers:
         specifier: ^1.2.1
         version: 1.6.1(@types/node@20.19.11)
 
+  packages/simulator-cli:
+    dependencies:
+      '@stripemeter/pricing-lib':
+        specifier: workspace:*
+        version: link:../pricing-lib
+      commander:
+        specifier: ^11.1.0
+        version: 11.1.0
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^20.11.0
+        version: 20.19.11
+      tsup:
+        specifier: ^8.0.1
+        version: 8.5.0(jiti@1.21.7)(postcss@8.5.6)(tsx@4.20.4)(typescript@5.9.2)(yaml@2.8.1)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.2
+      vitest:
+        specifier: ^1.2.1
+        version: 1.6.1(@types/node@20.19.11)
+
 packages:
 
   '@alloc/quick-lru@5.2.0':
@@ -1691,6 +1716,10 @@ packages:
   combined-stream@1.0.8:
     resolution: {integrity: sha512-FQN4MRfuJeHf7cBbBMJFXhKSDq+2kAArBlmRBvcvFE5BB1HZKXtSFASDhdlz9zOYwxh8lDdnvmMOe/+5cdoEdg==}
     engines: {node: '>= 0.8'}
+
+  commander@11.1.0:
+    resolution: {integrity: sha512-yPVavfyCcRhmorC7rWlkHn15b4wDVgVmBA7kV4QVBsF7kv/9TKJAbAXVTxvTnwP8HHKjRCJDClKbciiYS7p0DQ==}
+    engines: {node: '>=16'}
 
   commander@4.1.1:
     resolution: {integrity: sha512-NOKm8xhkzAjzFx8B2v5OAHT+u5pRQc2UCa2Vq9jYL/31o2wi9mxBA7LIFs3sV5VSC49z6pEhfbMULvShKj26WA==}
@@ -4525,6 +4554,8 @@ snapshots:
   combined-stream@1.0.8:
     dependencies:
       delayed-stream: 1.0.0
+
+  commander@11.1.0: {}
 
   commander@4.1.1: {}
 
