@@ -1,0 +1,35 @@
+{
+  "metadata": { "name": "tiered-basic", "version": "1" },
+  "model": {
+    "model": "tiered",
+    "currency": "USD",
+    "tiers": [
+      { "upTo": 100, "unitPrice": 0.1 },
+      { "upTo": 500, "unitPrice": 0.08 },
+      { "upTo": null, "unitPrice": 0.05 }
+    ]
+  },
+  "inputs": {
+    "customerId": "cust_1",
+    "periodStart": "2024-01-01",
+    "periodEnd": "2024-01-31",
+    "usageItems": [
+      {
+        "metric": "requests",
+        "quantity": 350,
+        "priceConfig": {
+          "model": "tiered",
+          "currency": "USD",
+          "tiers": [
+            { "upTo": 100, "unitPrice": 0.1 },
+            { "upTo": 500, "unitPrice": 0.08 },
+            { "upTo": null, "unitPrice": 0.05 }
+          ]
+        }
+      }
+    ]
+  },
+  "expected": { "total": 0 }
+}
+
+

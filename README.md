@@ -9,7 +9,18 @@
 [![Community](https://img.shields.io/badge/Join-Community-blue)](https://github.com/geminimir/stripemeter/discussions)
 [![Contributors](https://img.shields.io/github/contributors/geminimir/stripemeter.svg)](https://github.com/geminimir/stripemeter/graphs/contributors)
 
-**StripeMeter** is a production-ready, Stripe-native usage metering system that brings transparency and trust to SaaS billing. Built by developers, for developers who believe customers deserve to see exactly what they're paying for.
+**Stability: Alpha (v0.1.0)** — See [Release Notes](docs/RELEASE_NOTES_v0.1.0.md) and [Operator Playbook](RECONCILIATION.md).
+
+### Try in 5 minutes
+
+```bash
+pnpm i -w
+docker compose up -d
+pnpm -r build
+pnpm dev
+```
+
+**StripeMeter** is an alpha-stage, Stripe-native usage metering system that brings transparency and trust to SaaS billing. Built by developers, for developers who believe customers deserve to see exactly what they're paying for.
 
 ## Why StripeMeter?
 

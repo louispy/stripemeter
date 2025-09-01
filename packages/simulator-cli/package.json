@@ -1,0 +1,40 @@
+{
+  "name": "@stripemeter/simulator-cli",
+  "version": "0.1.0",
+  "description": "Simulator CLI to run, validate, and report on pricing scenarios",
+  "private": true,
+  "bin": {
+    "sim": "./dist/index.js",
+    "stripemeter-sim": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@stripemeter/pricing-lib": "workspace:*",
+    "commander": "^11.1.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.1"
+  }
+}
+
+

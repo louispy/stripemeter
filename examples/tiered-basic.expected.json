@@ -1,0 +1,20 @@
+{
+  "customerId": "cust_1",
+  "periodStart": "2024-01-01",
+  "periodEnd": "2024-01-31",
+  "lineItems": [
+    {
+      "metric": "requests",
+      "quantity": 350,
+      "unitPrice": 0.09,
+      "subtotal": 30,
+      "description": "350 units of requests"
+    }
+  ],
+  "subtotal": 30,
+  "credits": 0,
+  "adjustments": 0,
+  "tax": 0,
+  "total": 30,
+  "currency": "USD"
+}
