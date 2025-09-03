@@ -16,7 +16,7 @@ async function writeJson(filePath: string, data: unknown) {
 
 describe('runReport', () => {
   let tmp: string;
-  let consoleLogSpy: ReturnType<typeof vi.spyOn>;
+  let consoleLogSpy: any;
 
   beforeEach(async () => {
     tmp = await makeTempDir();

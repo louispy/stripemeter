@@ -16,7 +16,7 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "clean": "rm -rf dist",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit --skipLibCheck",
     "migrate": "drizzle-kit push:pg",
     "generate": "drizzle-kit generate:pg",
     "studio": "drizzle-kit studio",

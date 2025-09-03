@@ -13,6 +13,12 @@ dist/
 build/
 *.tsbuildinfo
 
+# Prevent compiled artifacts inside source trees
+**/src/**/*.js
+**/src/**/*.js.map
+**/src/**/*.d.ts
+**/src/**/*.d.ts.map
+
 # Misc
 .DS_Store
 *.pem

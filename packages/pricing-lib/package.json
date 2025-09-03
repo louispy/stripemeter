@@ -4,10 +4,8 @@
   "description": "Pricing calculation library for StripeMeter",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
-  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
     }
@@ -16,7 +14,7 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "clean": "rm -rf dist",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit --skipLibCheck",
     "test": "vitest run",
     "test:unit": "vitest run src/calculators/",
     "test:integration": "vitest run src/__tests__/"

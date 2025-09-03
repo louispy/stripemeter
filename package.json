@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "pnpm run --parallel --filter './packages/*' --filter './apps/*' dev",
     "build": "pnpm run --filter './packages/*' --filter './apps/*' build",
-    "test": "pnpm run --filter './packages/*' --filter './apps/*' test",
+    "test": "pnpm run --filter './packages/*' test && if [ \"$E2E_SERVICES\" = \"1\" ]; then pnpm run --filter @stripemeter/api --filter ./apps/workers test; else echo 'Skipping service-dependent tests (set E2E_SERVICES=1 to enable)'; fi",
     "test:simulator:unit": "pnpm --filter @stripemeter/pricing-lib test:unit",
     "test:simulator:integration": "pnpm --filter @stripemeter/pricing-lib test:integration",
     "test:simulator:performance": "pnpm --filter @stripemeter/pricing-lib test:integration",
@@ -20,7 +20,7 @@
     "docker:down": "docker compose down",
     "db:migrate": "pnpm --filter @stripemeter/database migrate",
     "db:seed": "pnpm --filter @stripemeter/database seed",
-    "typecheck": "tsc -b --pretty false",
+    "typecheck": "pnpm -r --workspace-concurrency=1 run typecheck",
     "precommit": "pnpm lint && pnpm typecheck && pnpm run test:simulator:fast",
     "prepare": "husky",
     "sim": "node packages/simulator-cli/dist/index.js"

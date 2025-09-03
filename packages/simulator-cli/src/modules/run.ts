@@ -11,20 +11,6 @@ interface RunOptions {
   record?: boolean;
 }
 
-function getScenarioTargets(opts: { scenario?: string; dir?: string }): string[] {
-  const targets: string[] = [];
-  if (opts.scenario) targets.push(path.resolve(process.cwd(), opts.scenario));
-  if (opts.dir) {
-    const dirPath = path.resolve(process.cwd(), opts.dir);
-    const items = fs.readdir(dirPath).then((list) =>
-      list.filter((f) => f.endsWith('.sim.json')).map((f) => path.join(dirPath, f))
-    );
-    // We cannot await here; handled by caller to simplify
-    throw new Error('Internal misuse: getScenarioTargets with dir requires async handling');
-  }
-  return targets;
-}
-
 function applySeed(seed?: string) {
   if (!seed) return;
   // Determinism placeholder; pricing-lib currently deterministic.
