@@ -39,7 +39,8 @@ program
   .option('--scenario <path>', 'Path to a single scenario file (.sim.json)')
   .option('--dir <path>', 'Directory containing scenario files')
   .option('--results <dir>', 'Directory containing results JSON', 'results')
-  .option('--format <fmt>', 'Output format: table|json|md', 'table')
+  .option('--format <fmt>', 'Output format: table|json|md|html', 'table')
+  .option('--out <file>', 'Write aggregated report to file (json|md|html)')
   .option('--fail-on-diff', 'Exit non-zero if diffs found', false)
   .action(async (opts) => {
     const exitCode = await runReport({
@@ -47,6 +48,7 @@ program
       dir: opts.dir,
       results: opts.results,
       format: opts.format,
+      out: opts.out,
       failOnDiff: !!opts.failOnDiff,
     });
     process.exit(exitCode);

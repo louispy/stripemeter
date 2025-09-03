@@ -6,8 +6,9 @@ interface ReportOptions {
   scenario?: string;
   dir?: string;
   results?: string;
-  format?: 'table' | 'json' | 'md';
+  format?: 'table' | 'json' | 'md' | 'html';
   failOnDiff?: boolean;
+  out?: string;
 }
 
 type Invoice = {
@@ -16,6 +17,11 @@ type Invoice = {
   tax?: number;
   currency?: string;
   lineItems?: Array<{ metric: string; quantity: number; unitPrice?: number; subtotal?: number }>;
+};
+
+type ScenarioDiff = {
+  scenario: string;
+  diffs: string[];
 };
 
 function approxEqual(a: number, b: number, abs = 0, rel = 0): boolean {
@@ -35,9 +41,81 @@ function findExpectedPath(scenarioPath: string): string {
   return `${base}.expected.json`;
 }
 
+function buildHtml(results: ScenarioDiff[]): string {
+  const total = results.length;
+  const diffCount = results.filter((r) => r.diffs.length > 0).length;
+  const okCount = total - diffCount;
+
+  const rows = results
+    .map((r) => {
+      const status = r.diffs.length === 0 ? 'OK' : 'DIFF';
+      const details = r.diffs.length === 0 ? '' : r.diffs.join('; ');
+      return `<tr><td>${escapeHtml(r.scenario)}</td><td class="${status.toLowerCase()}">${status}</td><td>${escapeHtml(details)}</td></tr>`;
+    })
+    .join('');
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simulator Report</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Arial, sans-serif; margin: 24px; }
+    h1 { font-size: 20px; margin: 0 0 12px; }
+    .summary { margin-bottom: 16px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 8px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+    th { background: #f9fafb; }
+    .ok { color: #047857; font-weight: 600; }
+    .diff { color: #b91c1c; font-weight: 600; }
+    .meta { color: #6b7280; }
+  </style>
+  </head>
+  <body>
+    <h1>Simulator Report</h1>
+    <div class="summary meta">Total: ${total} • OK: ${okCount} • Diffs: ${diffCount}</div>
+    <table>
+      <thead>
+        <tr><th>Scenario</th><th>Status</th><th>Details</th></tr>
+      </thead>
+      <tbody>
+        ${rows}
+      </tbody>
+    </table>
+  </body>
+</html>`;
+}
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function buildMarkdown(results: ScenarioDiff[]): string {
+  const header = '| Scenario | Result |\n|---|---|';
+  const rows = results
+    .map((r) => {
+      if (r.diffs.length === 0) return `| ${r.scenario} | OK |`;
+      return `| ${r.scenario} | ${r.diffs.join('; ')} |`;
+    })
+    .join('\n');
+  return `${header}\n${rows}\n`;
+}
+
+async function writeOutFile(outPath: string, contents: string | object): Promise<void> {
+  await fs.mkdir(path.dirname(outPath), { recursive: true });
+  const payload = typeof contents === 'string' ? contents : JSON.stringify(contents, null, 2) + '\n';
+  await fs.writeFile(outPath, payload, 'utf8');
+}
+
 export async function runReport(opts: ReportOptions): Promise<number> {
   const resultsDir = path.resolve(process.cwd(), opts.results ?? 'results');
-  const format = (opts.format ?? 'table') as 'table' | 'json' | 'md';
+  const format = (opts.format ?? 'table') as 'table' | 'json' | 'md' | 'html';
 
   const scenarios: string[] = [];
   if (opts.scenario) scenarios.push(path.resolve(process.cwd(), opts.scenario));
@@ -52,6 +130,7 @@ export async function runReport(opts: ReportOptions): Promise<number> {
   }
 
   let hadDiff = false;
+  const results: ScenarioDiff[] = [];
 
   for (const scenarioPath of scenarios) {
     const name = path.basename(scenarioPath).replace(/\.sim\.json$/, '');
@@ -59,14 +138,13 @@ export async function runReport(opts: ReportOptions): Promise<number> {
     const resultPath = path.join(resultsDir, `${name}.result.json`);
 
     try {
-      // Pull tolerances from scenario if present; default to conservative values
       const scenarioRaw = await readJson(scenarioPath);
       const parsedScenario = ScenarioSchema.safeParse(scenarioRaw);
       const absTol = parsedScenario.success && parsedScenario.data.tolerances?.absolute !== undefined
-        ? parsedScenario.data.tolerances.absolute
+        ? parsedScenario.data.tolerances.absolute!
         : 0.001;
       const relTol = parsedScenario.success && parsedScenario.data.tolerances?.relative !== undefined
-        ? parsedScenario.data.tolerances.relative
+        ? parsedScenario.data.tolerances.relative!
         : 0.0005;
 
       const expected: Invoice = await readJson(expectedPath);
@@ -83,27 +161,51 @@ export async function runReport(opts: ReportOptions): Promise<number> {
         diffs.push(`tax: expected ${expected.tax}, got ${actual.tax}`);
       }
 
-      if (format === 'json') {
-        console.log(JSON.stringify({ scenario: name, diffs }, null, 2));
-      } else if (format === 'md') {
-        if (diffs.length === 0) {
-          console.log(`| ${name} | OK |`);
-        } else {
-          console.log(`| ${name} | ${diffs.join('; ')} |`);
-        }
-      } else {
-        if (diffs.length === 0) {
-          console.log(`OK: ${name}`);
-        } else {
-          console.log(`DIFF: ${name}`);
-          for (const d of diffs) console.log(` - ${d}`);
-        }
-      }
-
+      results.push({ scenario: name, diffs });
       if (diffs.length > 0) hadDiff = true;
     } catch (err: any) {
-      console.error(`Failed to generate report for ${name}: ${err.message}`);
+      results.push({ scenario: name, diffs: [`error: ${err.message}`] });
       hadDiff = true;
+    }
+  }
+
+  const summary = {
+    total: results.length,
+    diffs: results.filter((r) => r.diffs.length > 0).length,
+    ok: results.filter((r) => r.diffs.length === 0).length,
+  };
+
+  // Render and emit
+  if (format === 'json') {
+    const payload = { summary, results };
+    if (opts.out) {
+      await writeOutFile(path.resolve(process.cwd(), opts.out), payload);
+    } else {
+      console.log(JSON.stringify(payload, null, 2));
+    }
+  } else if (format === 'md') {
+    const md = buildMarkdown(results);
+    if (opts.out) {
+      await writeOutFile(path.resolve(process.cwd(), opts.out), md);
+    } else {
+      process.stdout.write(md);
+    }
+  } else if (format === 'html') {
+    const html = buildHtml(results);
+    if (opts.out) {
+      await writeOutFile(path.resolve(process.cwd(), opts.out), html);
+    } else {
+      process.stdout.write(html);
+    }
+  } else {
+    // table (stdout pretty)
+    for (const r of results) {
+      if (r.diffs.length === 0) {
+        console.log(`OK: ${r.scenario}`);
+      } else {
+        console.log(`DIFF: ${r.scenario}`);
+        for (const d of r.diffs) console.log(` - ${d}`);
+      }
     }
   }
 
