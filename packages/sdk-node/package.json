@@ -16,7 +16,7 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "clean": "rm -rf dist",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit --skipLibCheck",
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {

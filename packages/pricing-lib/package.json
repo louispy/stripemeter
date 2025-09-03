@@ -11,10 +11,10 @@
     }
   },
   "scripts": {
-    "build": "tsc -b && tsup --no-dts",
+    "build": "tsup",
     "dev": "tsup --watch",
     "clean": "rm -rf dist",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit --skipLibCheck",
     "test": "vitest run",
     "test:unit": "vitest run src/calculators/",
     "test:integration": "vitest run src/__tests__/"

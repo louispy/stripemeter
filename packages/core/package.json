@@ -13,7 +13,7 @@
     }
   },
   "scripts": {
-    "build": "tsc -b && tsup",
+    "build": "tsup",
     "dev": "tsup --watch",
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit",

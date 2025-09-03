@@ -20,10 +20,10 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "paths": {
-      "@stripemeter/core": ["./packages/core/src"],
-      "@stripemeter/database": ["./packages/database/src"],
-      "@stripemeter/pricing-lib": ["./packages/pricing-lib/src"],
-      "@stripemeter/sdk-node": ["./packages/sdk-node/src"]
+      "@stripemeter/core": ["./packages/core/dist"],
+      "@stripemeter/database": ["./packages/database/dist"],
+      "@stripemeter/pricing-lib": ["./packages/pricing-lib/dist"],
+      "@stripemeter/sdk-node": ["./packages/sdk-node/dist"]
     }
   },
   "exclude": ["node_modules", "dist", "build", "coverage"]
