@@ -1,1 +1,0 @@
-{"version":3,"file":"stripe-writer.d.ts","sourceRoot":"","sources":["stripe-writer.ts"],"names":[],"mappings":"AAAA;;GAEG;AAWH,qBAAa,kBAAkB;IAC7B,OAAO,CAAC,MAAM,CAAS;IACvB,OAAO,CAAC,UAAU,CAA+B;IACjD,OAAO,CAAC,SAAS,CAAS;IAC1B,OAAO,CAAC,WAAW,CAA+B;;IAS5C,KAAK;IAgBL,IAAI;YAcI,iBAAiB;YAoCjB,mBAAmB;YA0CnB,oBAAoB;CAkKnC"}
