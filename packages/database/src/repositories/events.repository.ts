@@ -2,7 +2,7 @@
  * Events repository - Handles event storage and retrieval
  */
 
-import { eq, and, gte, lte, sql as sqlTag } from 'drizzle-orm';
+import { eq, and, gte, lte, sql as sqlTag, asc, desc } from 'drizzle-orm';
 import { db } from '../client';
 import { events, type Event, type NewEvent } from '../schema/events';
 
@@ -17,7 +17,7 @@ export class EventsRepository {
       .values(event)
       .onConflictDoNothing({ target: events.idempotencyKey })
       .returning();
-    
+
     // If conflict (duplicate), fetch the existing event
     if (!result) {
       const [existing] = await db
@@ -27,16 +27,16 @@ export class EventsRepository {
         .limit(1);
       return existing;
     }
-    
+
     return result;
   }
 
   /**
    * Batch insert events
    */
-  async upsertBatch(eventBatch: NewEvent[]): Promise<{ 
-    inserted: Event[]; 
-    duplicates: string[] 
+  async upsertBatch(eventBatch: NewEvent[]): Promise<{
+    inserted: Event[];
+    duplicates: string[]
   }> {
     if (eventBatch.length === 0) {
       return { inserted: [], duplicates: [] };
@@ -47,13 +47,13 @@ export class EventsRepository {
       .values(eventBatch)
       .onConflictDoNothing({ target: events.idempotencyKey })
       .returning();
-    
+
     // Identify duplicates
     const insertedKeys = new Set(inserted.map(e => e.idempotencyKey));
     const duplicates = eventBatch
       .filter(e => !insertedKeys.has(e.idempotencyKey))
       .map(e => e.idempotencyKey);
-    
+
     return { inserted, duplicates };
   }
 
@@ -68,7 +68,7 @@ export class EventsRepository {
     periodEnd: Date;
   }): Promise<Event[]> {
     const { tenantId, metric, customerRef, periodStart, periodEnd } = params;
-    
+
     return db
       .select()
       .from(events)
@@ -94,7 +94,7 @@ export class EventsRepository {
     watermark: Date;
   }): Promise<Event[]> {
     const { tenantId, metric, customerRef, watermark } = params;
-    
+
     return db
       .select()
       .from(events)
@@ -120,7 +120,7 @@ export class EventsRepository {
     periodEnd: Date;
   }): Promise<number> {
     const { tenantId, metric, customerRef, periodStart, periodEnd } = params;
-    
+
     const [result] = await db
       .select({
         total: sqlTag<number>`COALESCE(SUM(${events.quantity}), 0)::numeric`,
@@ -135,7 +135,7 @@ export class EventsRepository {
           lte(events.ts, periodEnd)
         )
       );
-    
+
     return Number(result?.total || 0);
   }
 
@@ -150,7 +150,7 @@ export class EventsRepository {
     periodEnd: Date;
   }): Promise<number> {
     const { tenantId, metric, customerRef, periodStart, periodEnd } = params;
-    
+
     const [result] = await db
       .select({
         max: sqlTag<number>`COALESCE(MAX(${events.quantity}), 0)::numeric`,
@@ -165,7 +165,7 @@ export class EventsRepository {
           lte(events.ts, periodEnd)
         )
       );
-    
+
     return Number(result?.max || 0);
   }
 
@@ -180,7 +180,7 @@ export class EventsRepository {
     periodEnd: Date;
   }): Promise<number | null> {
     const { tenantId, metric, customerRef, periodStart, periodEnd } = params;
-    
+
     const [result] = await db
       .select({ quantity: events.quantity })
       .from(events)
@@ -195,7 +195,144 @@ export class EventsRepository {
       )
       .orderBy(sqlTag`${events.ts} DESC`)
       .limit(1);
-    
+
     return result ? Number(result.quantity) : null;
+  }
+
+  /**
+   * Get events list based
+   */
+  async getEventsByParam(params: {
+    tenantId: string,
+    metric?: string,
+    customerRef?: string,
+    source?: string,
+    limit?: number,
+    offset?: number,
+    sort?: 'metric' | 'customerRef' | 'source' | 'ts',
+    sortDir?: 'asc' | 'desc',
+    startTime?: Date,
+    endTime?: Date,
+    getCount?: boolean,
+  }): Promise<Event[]> {
+    const {
+      tenantId,
+      metric,
+      customerRef,
+      source,
+      limit,
+      offset,
+      sort,
+      sortDir,
+      startTime,
+      endTime,
+    } = params;
+
+    const filters = [
+      eq(events.tenantId, tenantId),
+    ];
+
+    if (metric !== undefined) {
+      filters.push(eq(events.metric, metric));
+    }
+
+    if (customerRef !== undefined) {
+      filters.push(eq(events.customerRef, customerRef));
+    }
+
+    if (source !== undefined) {
+      filters.push(eq(events.source, source));
+    }
+
+    if (metric !== undefined) {
+      filters.push(eq(events.metric, metric));
+    }
+
+    if (startTime !== undefined) {
+      filters.push(gte(events.ts, startTime));
+    }
+
+    if (endTime !== undefined) {
+      filters.push(lte(events.ts, endTime));
+    }
+
+    const orderByClause = sortDir?.toUpperCase() === 'ASC'
+      ? asc(events[sort || "ts"])
+      : desc(events[sort || "ts"]);
+
+    const query = db
+      .select()
+      .from(events)
+      .where(and(...filters))
+      .orderBy(orderByClause)
+      .limit(limit || 25)
+      .offset(offset || 0);
+
+    const res = await query;
+
+    return res;
+  }
+
+  /**
+   * Get events list based
+   */
+  async getEventsCountByParam(params: {
+    tenantId: string,
+    metric?: string,
+    customerRef?: string,
+    source?: string,
+    limit?: number,
+    offset?: number,
+    sort?: 'metric' | 'customerRef' | 'source' | 'ts',
+    sortDir?: 'asc' | 'desc',
+    startTime?: Date,
+    endTime?: Date,
+    getCount?: boolean,
+  }): Promise<number> {
+    const {
+      tenantId,
+      metric,
+      customerRef,
+      source,
+      startTime,
+      endTime,
+    } = params;
+
+    const filters = [
+      eq(events.tenantId, tenantId),
+    ];
+
+    if (metric !== undefined) {
+      filters.push(eq(events.metric, metric));
+    }
+
+    if (customerRef !== undefined) {
+      filters.push(eq(events.customerRef, customerRef));
+    }
+
+    if (source !== undefined) {
+      filters.push(eq(events.source, source));
+    }
+
+    if (metric !== undefined) {
+      filters.push(eq(events.metric, metric));
+    }
+
+    if (startTime !== undefined) {
+      filters.push(gte(events.ts, startTime));
+    }
+
+    if (endTime !== undefined) {
+      filters.push(lte(events.ts, endTime));
+    }
+
+    const query = db
+      .select({ count: sqlTag`COUNT(idempotency_key)` })
+      .from(events)
+      .where(and(...filters));
+
+    const [res] = await query;
+
+    return res ? Number(res.count) : 0;
   }
 }

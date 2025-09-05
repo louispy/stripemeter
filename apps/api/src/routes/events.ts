@@ -3,14 +3,18 @@
  */
 
 import { FastifyPluginAsync } from 'fastify';
-import { 
-  ingestEventRequestSchema, 
+import {
+  ingestEventRequestSchema,
+  getEventsQuerySchema,
   generateIdempotencyKey,
   type IngestEventRequestInput,
-  type IngestEventResponse 
+  type IngestEventResponse,
+  type GetEventsQueryInput,
+  type GetEventsResponse,
 } from '@stripemeter/core';
 import { EventsRepository, redis } from '@stripemeter/database';
 import { Queue } from 'bullmq';
+import { request } from 'http';
 
 const eventsRepo = new EventsRepository();
 
@@ -104,7 +108,7 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
     // Process each event
     for (let i = 0; i < eventBatch.length; i++) {
       const event = eventBatch[i];
-      
+
       try {
         // Generate idempotency key if not provided
         const idempotencyKey = event.idempotencyKey || generateIdempotencyKey({
@@ -119,7 +123,7 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
         const eventTime = new Date(event.ts);
         const now = new Date();
         const maxFuture = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour in future
-        
+
         if (eventTime > maxFuture) {
           errors.push({
             index: i,
@@ -150,14 +154,14 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
     if (inserted.length > 0) {
       // Group by tenant, metric, customer, period for efficient aggregation
       const aggregationJobs = new Map<string, any>();
-      
+
       for (const event of inserted) {
         const periodStart = new Date(event.ts);
         periodStart.setUTCDate(1);
         periodStart.setUTCHours(0, 0, 0, 0);
-        
+
         const key = `${event.tenantId}:${event.metric}:${event.customerRef}:${periodStart.toISOString()}`;
-        
+
         if (!aggregationJobs.has(key)) {
           aggregationJobs.set(key, {
             tenantId: event.tenantId,
@@ -214,9 +218,111 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
     },
   }, async (_request, reply) => {
     // TODO: Implement backfill logic
-    reply.status(501).send({ 
+    reply.status(501).send({
       error: 'Not Implemented',
-      message: 'Backfill endpoint is under development' 
+      message: 'Backfill endpoint is under development'
     });
+  });
+
+
+  /**
+   * GET /v1/events
+   * Get events list
+   */
+  server.get<{
+    Querystring: GetEventsQueryInput;
+    Reply: GetEventsResponse;
+  }>('/', {
+    schema: {
+      description: 'Get events list',
+      tags: ['events'],
+      querystring: {
+        type: 'object',
+        required: ['tenantId'],
+        properties: {
+          tenantId: { type: 'string', format: 'uuid' },
+          metric: { type: 'string' },
+          customerRef: { type: 'string' },
+          source: { type: 'string' },
+          limit: { type: 'number', default: 25 },
+          offset: { type: 'number', default: 0 },
+          sort: { type: 'string', enum: ['metric', 'customerRef', 'source', 'ts'] },
+          sortDir: { type: 'string', enum: ['asc', 'desc'] },
+          startTime: { type: 'string', format: 'date-time' },
+          endTime: { type: 'string', format: 'date-time' },
+        },
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            total: { type: 'number' },
+            events: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: { type: 'string' },
+                  tenantId: { type: 'string' },
+                  metric: { type: 'string' },
+                  customerRef: { type: 'string' },
+                  resourceId: { type: 'string' },
+                  quantity: { type: 'number' },
+                  timestamp: { type: 'string' },
+                  meta: { type: 'string' },
+                  source: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+
+  }, async (_request, reply) => {
+    const validationResult = getEventsQuerySchema.safeParse(_request.query);
+    if (!validationResult.success) {
+      console.log(JSON.stringify(validationResult.error, null, 2));
+      return reply.status(400).send({
+        total: 0,
+        events: [],
+      });
+    }
+
+    const startTime = _request.query.startTime;
+    const endTime = _request.query.endTime;
+    const param = {
+      tenantId: _request.query.tenantId,
+      metric: _request.query.metric,
+      customerRef: _request.query.customerRef,
+      source: _request.query.source,
+      limit: _request.query.limit,
+      offset: _request.query.offset,
+      sort: _request.query.sort,
+      sortDir: _request.query.sortDir,
+      startTime: startTime ? new Date(startTime) : undefined,
+      endTime: endTime ? new Date(endTime) : undefined,
+    };
+
+    const [events, count] = await Promise.all([
+      eventsRepo.getEventsByParam(param),
+      eventsRepo.getEventsCountByParam(param),
+    ]);
+
+    const res: GetEventsResponse = {
+      total: count,
+      events: events.map(event => ({
+        id: event.idempotencyKey,
+        tenantId: event.tenantId,
+        metric: event.metric,
+        customerRef: event.customerRef,
+        resourceId: event.resourceId || undefined,
+        quantity: Number(event.quantity),
+        timestamp: event.ts.toISOString(),
+        source: event.source,
+      })),
+    };
+
+    reply.status(200).send(res)
   });
 };

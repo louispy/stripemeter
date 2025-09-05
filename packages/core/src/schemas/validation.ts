@@ -31,6 +31,20 @@ export const ingestEventRequestSchema = z.object({
   events: z.array(usageEventSchema).min(1).max(1000),
 });
 
+// Get Event List Query schema
+export const getEventsQuerySchema = z.object({
+  tenantId: uuidSchema,
+  metric: z.string().min(1).max(100).optional(),
+  customerRef: z.string().min(1).max(255).optional(),
+  source: z.enum(['sdk', 'http', 'etl', 'import', 'system']).optional(),
+  limit: z.number().int().min(1).max(100).optional().default(25),
+  offset: z.number().int().min(0).optional().default(0),
+  sort: z.enum(['metric', 'customerRef', 'source', 'ts']).optional().default('ts'),
+  sortDir: z.enum(['asc', 'desc']).optional().default('desc'),
+  startTime: isoDateTimeSchema.optional(),
+  endTime: isoDateTimeSchema.optional(),
+});
+
 // Adjustment schema
 export const adjustmentRequestSchema = z.object({
   tenantId: uuidSchema,
@@ -91,6 +105,7 @@ export const alertConfigSchema = z.object({
 // Type exports
 export type UsageEventInput = z.infer<typeof usageEventSchema>;
 export type IngestEventRequestInput = z.infer<typeof ingestEventRequestSchema>;
+export type GetEventsQueryInput = z.infer<typeof getEventsQuerySchema>;
 export type AdjustmentRequestInput = z.infer<typeof adjustmentRequestSchema>;
 export type BackfillRequestInput = z.infer<typeof backfillRequestSchema>;
 export type ProjectionRequestInput = z.infer<typeof projectionRequestSchema>;
