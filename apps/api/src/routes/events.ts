@@ -14,7 +14,6 @@ import {
 } from '@stripemeter/core';
 import { EventsRepository, redis } from '@stripemeter/database';
 import { Queue } from 'bullmq';
-import { request } from 'http';
 
 const eventsRepo = new EventsRepository();
 
