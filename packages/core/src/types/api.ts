@@ -9,6 +9,19 @@ export interface IngestEventRequest {
   events: UsageEvent[];
 }
 
+export interface GetEventsQueryRequest {
+  tenantId: string;
+  metric?: string;
+  customerRef?: string;
+  source?: 'sdk' | 'http' | 'etl' | 'import' | 'system';
+  limit?: number;
+  offset?: number;
+  sort?: 'metric' | 'customerRef' | 'source' | 'ts';
+  sortDir?: 'asc' | 'desc';
+  startTime?: string;
+  endTime?: string;
+}
+
 export interface BackfillRequest {
   tenantId: string;
   metric: string;
@@ -40,6 +53,25 @@ export interface ProjectionRequest {
 export interface IngestEventResponse {
   accepted: number;
   duplicates: number;
+  errors?: Array<{
+    index: number;
+    error: string;
+  }>;
+}
+
+export interface GetEventsResponse {
+  total: number;
+  events: Array<{
+    id: string;
+    tenantId: string;
+    metric: string;
+    customerRef: string;
+    resourceId?: string;
+    quantity: number;
+    timestamp: string;
+    meta?: string;
+    source: string;
+  }>;
   errors?: Array<{
     index: number;
     error: string;

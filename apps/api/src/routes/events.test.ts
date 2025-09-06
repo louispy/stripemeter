@@ -153,4 +153,62 @@ describe('Events API', () => {
       expect(response.statusCode).toBe(400);
     });
   });
+
+  describe('GET /v1/events', () => {
+  it('should return events list for valid tenantId', async () => {
+    const tenantId = '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d';
+
+    // Insert a test event first (if needed for isolation)
+    await server.inject({
+      method: 'POST',
+      url: '/v1/events/ingest',
+      payload: {
+        events: [{
+          tenantId,
+          metric: 'api_calls',
+          customerRef: 'cus_TEST001',
+          quantity: 100,
+          ts: new Date().toISOString(),
+        }],
+      },
+    });
+
+    const response = await server.inject({
+      method: 'GET',
+      url: `/v1/events?tenantId=${tenantId}`,
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body).toHaveProperty('total');
+    expect(body).toHaveProperty('events');
+    expect(Array.isArray(body.events)).toBe(true);
+    expect(body.events.length).toBeGreaterThanOrEqual(1);
+    expect(body.events[0]).toHaveProperty('tenantId', tenantId);
+  });
+
+  it('should return 400 for missing tenantId', async () => {
+    const response = await server.inject({
+      method: 'GET',
+      url: '/v1/events',
+    });
+
+    expect(response.statusCode).toBe(400);
+  });
+
+  it('should support pagination and sorting', async () => {
+    const tenantId = '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d';
+
+    const response = await server.inject({
+      method: 'GET',
+      url: `/v1/events?tenantId=${tenantId}&limit=1&offset=0&sort=ts&sortDir=desc`,
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body).toHaveProperty('total');
+    expect(body).toHaveProperty('events');
+    expect(body.events.length).toBeLessThanOrEqual(1);
+  });
+});
 });
