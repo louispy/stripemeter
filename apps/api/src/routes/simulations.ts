@@ -136,9 +136,18 @@ export const simulationRoutes: FastifyPluginAsync = async (server) => {
       .where(and(...conditions));
 
     // Get scenarios
+    const getSortColumn = (field: string) => {
+      switch (field) {
+        case 'name': return simulationScenarios.name;
+        case 'createdAt': return simulationScenarios.createdAt;
+        case 'updatedAt': return simulationScenarios.updatedAt;
+        default: return simulationScenarios.createdAt;
+      }
+    };
+    
     const orderBy = sortOrder === 'desc' 
-      ? desc(simulationScenarios[sortBy as keyof typeof simulationScenarios])
-      : asc(simulationScenarios[sortBy as keyof typeof simulationScenarios]);
+      ? desc(getSortColumn(sortBy))
+      : asc(getSortColumn(sortBy));
 
     const scenarios = await db
       .select({
