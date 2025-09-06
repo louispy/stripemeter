@@ -10,11 +10,14 @@ import { ReconcilerWorker } from './workers/reconciler';
 import { AlertMonitorWorker } from './workers/alert-monitor';
 import { SimulationRunnerWorker } from './workers/simulation-runner';
 import { redis } from '@stripemeter/database';
+import { startWorkerHttpServer } from './http';
 
 async function start() {
   logger.info('🚀 Starting Stripemeter workers...');
 
   try {
+    // Start lightweight HTTP server for health/metrics
+    startWorkerHttpServer();
     // Initialize workers
     const aggregator = new AggregatorWorker();
     const stripeWriter = new StripeWriterWorker();

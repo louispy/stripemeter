@@ -9,9 +9,11 @@ import rateLimit from '@fastify/rate-limit';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
 import { errorHandler } from './utils/error-handler';
+import { registerHttpMetricsHooks } from './utils/metrics';
 
 // Import routes
 import { healthRoutes } from './routes/health';
+import { metricsRoutes } from './routes/metrics';
 import { eventsRoutes } from './routes/events';
 import { usageRoutes } from './routes/usage';
 import { mappingsRoutes } from './routes/mappings';
@@ -49,6 +51,9 @@ export async function buildServer() {
     allowList: ['127.0.0.1', '::1'], // Whitelist localhost
   });
 
+  // Register HTTP metrics hooks (non-intrusive)
+  registerHttpMetricsHooks(server);
+
   // API Documentation
   await server.register(swagger, {
     swagger: {
@@ -85,6 +90,7 @@ export async function buildServer() {
 
   // Register routes
   await server.register(healthRoutes, { prefix: '/health' });
+  await server.register(metricsRoutes, { prefix: '/metrics' });
   await server.register(eventsRoutes, { prefix: '/v1/events' });
   await server.register(usageRoutes, { prefix: '/v1/usage' });
   await server.register(mappingsRoutes, { prefix: '/v1/mappings' });
