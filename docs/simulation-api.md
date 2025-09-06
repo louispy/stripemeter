@@ -1,5 +1,23 @@
 # Simulation API Documentation
 
+## Observability endpoints (early release)
+
+The API and workers expose minimal health and metrics endpoints to aid monitoring.
+
+API service:
+- `GET /health` returns `{ status: "ok", timestamp }`.
+- `GET /health/live` returns `{ status: "alive" }`.
+- `GET /health/ready` performs simple DB and Redis checks and returns status `healthy|degraded|unhealthy`.
+- `GET /metrics` exposes Prometheus metrics including default Node.js process metrics and basic HTTP metrics.
+
+Workers service (internal server on `WORKER_HTTP_PORT`, default `3100`):
+- `GET /health/live` and `GET /health/ready` return process status.
+- `GET /metrics` exposes Prometheus metrics for workers.
+
+Notes:
+- These endpoints are intentionally simple for early versions. `/metrics` is not protected; restrict via network if needed.
+- Future versions may include richer checks (Stripe probe, worker heartbeat, pending work gauges).
+
 ## Overview
 
 The Simulation API provides a comprehensive system for managing and executing pricing simulations in StripeMeter. This enables teams to:
