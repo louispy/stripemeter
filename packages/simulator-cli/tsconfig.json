@@ -2,7 +2,12 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "rootDir": "./src"
+    "rootDir": "./src",
+    "baseUrl": "../../",
+    "paths": {
+      "@stripemeter/pricing-lib": ["packages/pricing-lib/dist"],
+      "@stripemeter/core": ["packages/core/dist"]
+    }
   },
   "include": ["src"]
 }

@@ -4,7 +4,11 @@
     "rootDir": "./src",
     "outDir": "./dist",
     "declaration": true,
-    "declarationMap": true
+    "declarationMap": true,
+    "moduleResolution": "bundler",
+    "module": "ESNext",
+    "target": "ES2022",
+    "types": ["node"]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]

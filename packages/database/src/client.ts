@@ -2,7 +2,7 @@
  * Database client configuration
  */
 
-import { drizzle } from 'drizzle-orm/postgres-js';
+import { drizzle } from 'drizzle-orm/postgres-js/driver';
 import postgres from 'postgres';
 import Redis from 'ioredis';
 import * as schema from './schema';

@@ -4,7 +4,13 @@
     "rootDir": "./src",
     "outDir": "./dist",
     "declaration": true,
-    "declarationMap": true
+    "declarationMap": true,
+    "baseUrl": "../../",
+    "paths": {
+      "@stripemeter/core": ["packages/core/dist"],
+      "@stripemeter/pricing-lib": ["packages/pricing-lib/dist"],
+      "@stripemeter/database": ["packages/database/dist"]
+    }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]
