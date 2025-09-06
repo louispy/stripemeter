@@ -8,6 +8,7 @@ import { AggregatorWorker } from './workers/aggregator';
 import { StripeWriterWorker } from './workers/stripe-writer';
 import { ReconcilerWorker } from './workers/reconciler';
 import { AlertMonitorWorker } from './workers/alert-monitor';
+import { SimulationRunnerWorker } from './workers/simulation-runner';
 import { redis } from '@stripemeter/database';
 
 async function start() {
@@ -19,6 +20,7 @@ async function start() {
     const stripeWriter = new StripeWriterWorker();
     const reconciler = new ReconcilerWorker();
     const alertMonitor = new AlertMonitorWorker();
+    const simulationRunner = new SimulationRunnerWorker();
 
     // Start all workers
     await Promise.all([
@@ -26,6 +28,7 @@ async function start() {
       stripeWriter.start(),
       reconciler.start(),
       alertMonitor.start(),
+      simulationRunner.start(),
     ]);
 
     logger.info('✅ All workers started successfully');
@@ -39,6 +42,7 @@ async function start() {
         stripeWriter.stop(),
         reconciler.stop(),
         alertMonitor.stop(),
+        simulationRunner.stop(),
       ]);
 
       await redis.quit();
