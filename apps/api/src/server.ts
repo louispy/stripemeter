@@ -17,6 +17,7 @@ import { usageRoutes } from './routes/usage';
 import { mappingsRoutes } from './routes/mappings';
 import { reconciliationRoutes } from './routes/reconciliation';
 import { alertsRoutes } from './routes/alerts';
+import { simulationRoutes } from './routes/simulations';
 
 export async function buildServer() {
   const server = Fastify({
@@ -67,6 +68,7 @@ export async function buildServer() {
         { name: 'mappings', description: 'Price mapping configuration' },
         { name: 'reconciliation', description: 'Reconciliation reports' },
         { name: 'alerts', description: 'Alert configuration' },
+        { name: 'simulations', description: 'Pricing simulation scenarios and runs' },
       ],
     },
   });
@@ -88,6 +90,7 @@ export async function buildServer() {
   await server.register(mappingsRoutes, { prefix: '/v1/mappings' });
   await server.register(reconciliationRoutes, { prefix: '/v1/reconciliation' });
   await server.register(alertsRoutes, { prefix: '/v1/alerts' });
+  await server.register(simulationRoutes, { prefix: '/v1/simulations' });
 
   // Ready handler
   await server.ready();

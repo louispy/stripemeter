@@ -5,12 +5,12 @@
 
 set -e
 
-echo "🚀 Setting up StripeMeter development environment..."
+echo "Setting up StripeMeter development environment..."
 
 # Check prerequisites
 check_command() {
     if ! command -v $1 &> /dev/null; then
-        echo "❌ $1 is not installed. Please install it first."
+        echo "$1 is not installed. Please install it first."
         exit 1
     fi
 }
@@ -24,14 +24,14 @@ check_command docker-compose
 # Check Node version
 NODE_VERSION=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
 if [ "$NODE_VERSION" -lt 20 ]; then
-    echo "❌ Node.js version 20 or higher is required. Current version: $(node -v)"
+    echo "Node.js version 20 or higher is required. Current version: $(node -v)"
     exit 1
 fi
 
-echo "✅ All prerequisites met!"
+echo "All prerequisites met!"
 
 # Install dependencies
-echo "📦 Installing dependencies..."
+echo "Installing dependencies..."
 pnpm install
 
 # Setup environment file
@@ -70,49 +70,56 @@ PROMETHEUS_PORT=9090
 # Environment
 NODE_ENV=development
 EOF
-    echo "⚠️  Please update .env with your Stripe API keys"
+    echo "Please update .env with your Stripe API keys"
 else
-    echo "✅ .env file already exists"
+    echo ".env file already exists"
+fi
+
+# Determine docker compose command (plugin vs standalone)
+if docker compose version > /dev/null 2>&1; then
+    DC="docker compose"
+else
+    DC="docker-compose"
 fi
 
 # Start Docker services
-echo "🐳 Starting Docker services..."
-docker compose up -d
+echo "Starting Docker services..."
+$DC up -d
 
 # Wait for services to be ready
 echo "⏳ Waiting for services to be ready..."
 sleep 5
 
 # Check if PostgreSQL is ready
-until docker compose exec -T postgres pg_isready -U stripemeter > /dev/null 2>&1; do
+until $DC exec -T postgres pg_isready -U stripemeter > /dev/null 2>&1; do
     echo "Waiting for PostgreSQL..."
     sleep 2
 done
-echo "✅ PostgreSQL is ready"
+echo "PostgreSQL is ready"
 
 # Check if Redis is ready
-until docker compose exec -T redis redis-cli ping > /dev/null 2>&1; do
+until $DC exec -T redis redis-cli ping > /dev/null 2>&1; do
     echo "Waiting for Redis..."
     sleep 2
 done
-echo "✅ Redis is ready"
+echo "Redis is ready"
 
 # Build packages
 echo "🔨 Building packages..."
 pnpm build
 
 # Run database migrations
-echo "🗄️ Running database migrations..."
+echo "Running database migrations..."
 cd packages/database
 pnpm generate
 pnpm migrate
 cd ../..
 
-echo "✨ Setup complete!"
+echo "Setup complete!"
 echo ""
-echo "📚 Next steps:"
+echo "Next steps:"
 echo "1. Update .env with your Stripe API keys"
 echo "2. Run 'pnpm dev' to start the development servers"
 echo "3. Visit http://localhost:3000/docs for API documentation"
 echo ""
-echo "🎉 Happy coding!"
+echo "Happy coding!"
