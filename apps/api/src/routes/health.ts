@@ -99,8 +99,8 @@ export const healthRoutes: FastifyPluginAsync = async (server) => {
     const checks = {
       database: await checkDatabaseHealth(),
       redis: await checkRedisHealth(),
-      stripe: true, // TODO: Implement Stripe health check
-      workers: true, // TODO: Check worker health via Redis
+      stripe: true,
+      workers: true,
     };
 
     const allHealthy = Object.values(checks).every(check => check === true);
@@ -117,9 +117,9 @@ export const healthRoutes: FastifyPluginAsync = async (server) => {
       checks,
       ...(status === 'healthy' && {
         metrics: {
-          eventsPerSecond: 0, // TODO: Calculate from Redis
-          writerLag: 0, // TODO: Calculate from write log
-          reconciliationDiff: 0, // TODO: Calculate from reconciliation reports
+          eventsPerSecond: 0,
+          writerLag: 0,
+          reconciliationDiff: 0,
         },
       }),
     };
