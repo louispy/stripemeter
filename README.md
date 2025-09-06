@@ -9,7 +9,7 @@
 [![Community](https://img.shields.io/badge/Join-Community-blue)](https://github.com/geminimir/stripemeter/discussions)
 [![Contributors](https://img.shields.io/github/contributors/geminimir/stripemeter.svg)](https://github.com/geminimir/stripemeter/graphs/contributors)
 
-**Stability: Beta (v0.2.0)** — See [Release Notes](docs/RELEASE_NOTES_v0.2.0.md) and [Operator Playbook](RECONCILIATION.md).
+**Stability: Alpha (v0.1.0)** — See [Release Notes](docs/RELEASE_NOTES_v0.1.0.md) and [Operator Playbook](RECONCILIATION.md).
 
 ### Try in 5 minutes
 
@@ -19,11 +19,6 @@ docker compose up -d
 pnpm -r build
 pnpm dev
 ```
-
-After services are up:
-- Readiness: `GET http://localhost:3000/health/ready`
-- Metrics: `GET http://localhost:3000/metrics`
-- List events: `curl -s "http://localhost:3000/v1/events?tenantId=9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d&limit=10" | jq`
 
 **StripeMeter** is an alpha-stage, Stripe-native usage metering system that brings transparency and trust to SaaS billing. Built by developers, for developers who believe customers deserve to see exactly what they're paying for.
 
