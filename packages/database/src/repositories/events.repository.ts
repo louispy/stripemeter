@@ -244,10 +244,6 @@ export class EventsRepository {
       filters.push(eq(events.source, source));
     }
 
-    if (metric !== undefined) {
-      filters.push(eq(events.metric, metric));
-    }
-
     if (startTime !== undefined) {
       filters.push(gte(events.ts, startTime));
     }
@@ -312,10 +308,6 @@ export class EventsRepository {
 
     if (source !== undefined) {
       filters.push(eq(events.source, source));
-    }
-
-    if (metric !== undefined) {
-      filters.push(eq(events.metric, metric));
     }
 
     if (startTime !== undefined) {

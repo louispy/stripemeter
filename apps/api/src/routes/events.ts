@@ -281,10 +281,13 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
   }, async (_request, reply) => {
     const validationResult = getEventsQuerySchema.safeParse(_request.query);
     if (!validationResult.success) {
-      console.log(JSON.stringify(validationResult.error, null, 2));
       return reply.status(400).send({
         total: 0,
         events: [],
+        errors: validationResult.error.errors.map((err: any, index: number) => ({
+          index,
+          error: err.message,
+        })),
       });
     }
 
@@ -319,6 +322,9 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
         quantity: Number(event.quantity),
         timestamp: event.ts.toISOString(),
         source: event.source,
+        meta: typeof event.meta === 'string'
+          ? event.meta
+          : JSON.stringify(event.meta),
       })),
     };
 

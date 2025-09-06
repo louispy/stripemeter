@@ -72,6 +72,10 @@ export interface GetEventsResponse {
     meta?: string;
     source: string;
   }>;
+  errors?: Array<{
+    index: number;
+    error: string;
+  }>;
 }
 
 export interface ProjectionResponse {
