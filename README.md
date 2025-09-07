@@ -15,6 +15,7 @@
 
 ```bash
 pnpm i -w
+cp .env.example .env
 docker compose up -d
 pnpm -r build
 pnpm dev
@@ -23,7 +24,71 @@ pnpm dev
 After services are up:
 - Readiness: `GET http://localhost:3000/health/ready`
 - Metrics: `GET http://localhost:3000/metrics`
-- List events: `curl -s "http://localhost:3000/v1/events?tenantId=9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d&limit=10" | jq`
+- List events: `curl -s "http://localhost:3000/v1/events?tenantId=your-tenant-id&limit=10" | jq`
+
+### Verify it worked (visible success)
+
+```bash
+# 1) Health (should be healthy or degraded)
+curl -s http://localhost:3000/health/ready
+
+# 2) Idempotency demo: send the SAME event twice (counts once)
+curl -s -X POST http://localhost:3000/v1/events/ingest \
+  -H "Content-Type: application/json" \
+  -d '{
+    "events": [{
+      "tenantId": "your-tenant-id",
+      "metric": "api_calls",
+      "customerRef": "cust_123",
+      "quantity": 5,
+      "ts": "2025-01-01T00:00:00Z",
+      "idempotencyKey": "evt-1"
+    }]
+  }'
+
+curl -s -X POST http://localhost:3000/v1/events/ingest \
+  -H "Content-Type: application/json" \
+  -d '{
+    "events": [{
+      "tenantId": "your-tenant-id",
+      "metric": "api_calls",
+      "customerRef": "cust_123",
+      "quantity": 5,
+      "ts": "2025-01-01T00:00:00Z",
+      "idempotencyKey": "evt-1"
+    }]
+  }'
+
+# 3) Check metrics (should reflect one accepted ingest)
+curl -s http://localhost:3000/metrics | head -n 30
+```
+
+> If this clarified drift/idempotency, please ⭐ the repo and open an issue with what you tried — it guides the roadmap.
+
+### Micro-proof numbers (optional quick check)
+
+- p95 ingest latency: ~10–25 ms
+- Re-aggregation of 10k late events: ≤ 2 s
+- Duplicate events inside 24 h idempotency window: 0 double-counts
+
+Reproduce locally:
+
+```bash
+# p95 for POST /v1/events/ingest (100 concurrent for 30s)
+npx autocannon -m POST -H 'content-type: application/json' \
+  -b '{"events":[{"tenantId":"your-tenant-id","metric":"api_calls","customerRef":"c1","quantity":1,"ts":"2025-01-01T00:00:00Z"}]}' \
+  http://localhost:3000/v1/events/ingest
+
+# Spot-check metrics after a short send
+curl -s http://localhost:3000/metrics | grep -E "http_request_duration|process_" || true
+```
+
+### Pick your case (examples)
+
+- API calls: `bash examples/api-calls/verify.sh`
+- Seats: `bash examples/seats/verify.sh`
+
+Each script checks health, sends a duplicate event with an explicit idempotency key, and prints the first lines of `/metrics` so you can see it counted once.
 
 **StripeMeter** is an alpha-stage, Stripe-native usage metering system that brings transparency and trust to SaaS billing. Built by developers, for developers who believe customers deserve to see exactly what they're paying for.
 
