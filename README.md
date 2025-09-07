@@ -13,6 +13,8 @@
 
 ### Try in 5 minutes
 
+Optional preflight (checks Node/pnpm/Docker/ports): `bash scripts/preflight.sh`
+
 ```bash
 pnpm i -w
 cp .env.example .env
@@ -30,37 +32,14 @@ After services are up:
 
 ```bash
 # 1) Health (should be healthy or degraded)
-curl -s http://localhost:3000/health/ready
+curl -fsS http://localhost:3000/health/ready | jq . || true
 
 # 2) Idempotency demo: send the SAME event twice (counts once)
-curl -s -X POST http://localhost:3000/v1/events/ingest \
-  -H "Content-Type: application/json" \
-  -d '{
-    "events": [{
-      "tenantId": "your-tenant-id",
-      "metric": "api_calls",
-      "customerRef": "cust_123",
-      "quantity": 5,
-      "ts": "2025-01-01T00:00:00Z",
-      "idempotencyKey": "evt-1"
-    }]
-  }'
-
-curl -s -X POST http://localhost:3000/v1/events/ingest \
-  -H "Content-Type: application/json" \
-  -d '{
-    "events": [{
-      "tenantId": "your-tenant-id",
-      "metric": "api_calls",
-      "customerRef": "cust_123",
-      "quantity": 5,
-      "ts": "2025-01-01T00:00:00Z",
-      "idempotencyKey": "evt-1"
-    }]
-  }'
+# TENANT_ID will be generated if unset
+TENANT_ID=$(uuidgen 2>/dev/null || cat /proc/sys/kernel/random/uuid) bash examples/api-calls/send.sh
 
 # 3) Check metrics (should reflect one accepted ingest)
-curl -s http://localhost:3000/metrics | head -n 30
+curl -fsS http://localhost:3000/metrics | head -n 30
 ```
 
 > If this clarified drift/idempotency, please ⭐ the repo and open an issue with what you tried — it guides the roadmap.

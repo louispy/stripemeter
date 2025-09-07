@@ -2,7 +2,12 @@
 set -euo pipefail
 
 API_URL="${STRIPEMETER_API_URL:-http://localhost:3000}"
-TENANT_ID="${TENANT_ID:-your-tenant-id}"
+TENANT_ID="${TENANT_ID:-}"
+if [ -z "$TENANT_ID" ]; then
+  if command -v uuidgen >/dev/null 2>&1; then TENANT_ID=$(uuidgen);
+  elif [ -f /proc/sys/kernel/random/uuid ]; then TENANT_ID=$(cat /proc/sys/kernel/random/uuid);
+  else TENANT_ID=$(node -e "console.log(require('crypto').randomUUID())"); fi
+fi
 CUSTOMER_REF="${CUSTOMER_REF:-cust_123}"
 METRIC="api_calls"
 IDEMPOTENCY_KEY="${IDEMPOTENCY_KEY:-evt-1}"
@@ -21,15 +26,16 @@ DATA=$(cat <<JSON
 JSON
 )
 
+echo "TENANT_ID=${TENANT_ID}"
 echo "→ Ingesting event (idempotencyKey=${IDEMPOTENCY_KEY})"
-curl -s -X POST "${API_URL}/v1/events/ingest" \
+curl -fsS -X POST "${API_URL}/v1/events/ingest" \
   -H "Content-Type: application/json" \
   -d "${DATA}" | jq . || true
 
 sleep 0.5
 
 echo "→ Re-sending same event (should be deduped)"
-curl -s -X POST "${API_URL}/v1/events/ingest" \
+curl -fsS -X POST "${API_URL}/v1/events/ingest" \
   -H "Content-Type: application/json" \
   -d "${DATA}" | jq . || true
 
