@@ -1,6 +1,7 @@
 # StripeMeter
 
-> **The open-source usage metering platform that eliminates billing surprises**
+> **Open-source usage metering & reconciliation for Stripe Billing**  
+> Stop **billing drift** from late events, retries, and backfills so **invoices match reality**.
 
 [![CI](https://github.com/geminimir/stripemeter/actions/workflows/ci.yml/badge.svg)](https://github.com/geminimir/stripemeter/actions/workflows/ci.yml)
 [![GitHub release](https://img.shields.io/github/v/release/geminimir/stripemeter)](https://github.com/geminimir/stripemeter/releases)
@@ -11,9 +12,27 @@
 
 **Stability: Beta (v0.2.0)** — See [Release Notes](docs/RELEASE_NOTES_v0.2.0.md) and [Operator Playbook](RECONCILIATION.md).
 
-### Try in 5 minutes
+## What it is
+A small service you run next to your app: it **dedupes** retries, handles **late events** with watermarks, keeps **running counters**, and **pushes only the delta** to Stripe so totals stay correct. A reconciliation loop + metrics catch drift before invoice close.
 
-Optional preflight (checks Node/pnpm/Docker/ports): `bash scripts/preflight.sh`
+## Who it’s for
+- SaaS teams on **Stripe usage-based pricing**
+- Engineers who need **correct usage totals** and early **drift detection**
+
+## What it is / isn’t
+**It is**
+- A **metering pipeline**: ingest → dedupe → aggregate → reconcile
+- A **correctness guard** for Stripe usage billing (no surprise invoices)
+- **Operator-ready**: `/health`, `/metrics`, drift tolerance, runbooks
+
+**It isn’t**
+- A payment processor or replacement for Stripe Billing
+- A pricing engine/UI (those are optional extras; core is correctness)
+
+---
+
+## Try in 5 minutes
+(Optional preflight: `bash scripts/preflight.sh`)
 
 ```bash
 pnpm i -w
@@ -28,7 +47,7 @@ After services are up:
 - Metrics: `GET http://localhost:3000/metrics`
 - List events: `curl -s "http://localhost:3000/v1/events?tenantId=your-tenant-id&limit=10" | jq`
 
-### Verify it worked (visible success)
+### Verify it worked (30-sec demo)
 
 ```bash
 # 1) Health (should be healthy or degraded)
