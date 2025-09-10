@@ -1,1 +1,13 @@
-{"version":"5","dialect":"pg","entries":[]}
+{
+  "version": "5",
+  "dialect": "pg",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1757469128801,
+      "tag": "0000_fresh_betty_ross",
+      "breakpoints": true
+    }
+  ]
+}
