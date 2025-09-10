@@ -9,6 +9,8 @@ import rateLimit from '@fastify/rate-limit';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
 import { errorHandler } from './utils/error-handler';
+import { verifyApiKey } from './utils/auth';
+import { perTenantRateLimit } from './utils/rate-limit';
 import { registerHttpMetricsHooks } from './utils/metrics';
 
 // Import routes
@@ -20,6 +22,8 @@ import { mappingsRoutes } from './routes/mappings';
 import { reconciliationRoutes } from './routes/reconciliation';
 import { alertsRoutes } from './routes/alerts';
 import { simulationRoutes } from './routes/simulations';
+import { adminRoutes } from './routes/admin';
+import { persistAuditLog } from './utils/audit';
 
 export async function buildServer() {
   const server = Fastify({
@@ -91,12 +95,44 @@ export async function buildServer() {
   // Register routes
   await server.register(healthRoutes, { prefix: '/health' });
   await server.register(metricsRoutes, { prefix: '/metrics' });
+  // Require API key for v1 routes except health/docs
+  server.addHook('onRequest', async (request, reply) => {
+    const bypass = process.env.BYPASS_AUTH === '1';
+    if (bypass) return;
+    const url = request.raw.url || '';
+    if (url.startsWith('/health') || url.startsWith('/docs') || url.startsWith('/json') || url.startsWith('/metrics')) return;
+    await verifyApiKey(request, reply);
+  });
+
+  // Per-tenant rate limiting
+  const rlLimit = parseInt(process.env.TENANT_RATE_LIMIT || '1000', 10);
+  const rlWindow = parseInt(process.env.TENANT_RATE_LIMIT_WINDOW || '60', 10);
+  server.addHook('preHandler', perTenantRateLimit({ limit: rlLimit, windowSeconds: rlWindow }));
+
+  // Persist audit logs after response
+  server.addHook('onResponse', persistAuditLog);
+
   await server.register(eventsRoutes, { prefix: '/v1/events' });
   await server.register(usageRoutes, { prefix: '/v1/usage' });
   await server.register(mappingsRoutes, { prefix: '/v1/mappings' });
   await server.register(reconciliationRoutes, { prefix: '/v1/reconciliation' });
   await server.register(alertsRoutes, { prefix: '/v1/alerts' });
   await server.register(simulationRoutes, { prefix: '/v1/simulations' });
+  await server.register(adminRoutes, { prefix: '/v1/admin' });
+
+  // Test-only database cleanup for deterministic results
+  if (process.env.NODE_ENV === 'test') {
+    try {
+      const { db, events, simulationRuns, simulationScenarios, simulationBatches } = await import('@stripemeter/database');
+      // Order matters due to FKs
+      await db.delete(simulationRuns);
+      await db.delete(simulationBatches);
+      await db.delete(simulationScenarios);
+      await db.delete(events);
+    } catch (err) {
+      server.log.warn({ err }, 'test db cleanup failed');
+    }
+  }
 
   // Ready handler
   await server.ready();

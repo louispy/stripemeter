@@ -36,3 +36,17 @@ export const logger = pino({
     env: process.env.NODE_ENV,
   },
 });
+
+export function logAudit(serverOrRequest: any, event: {
+  organisationId: string;
+  projectId?: string;
+  actorType: 'api_key' | 'user' | 'system';
+  actorId: string;
+  action: string;
+  resourceType?: string;
+  resourceId?: string;
+  meta?: Record<string, any>;
+}) {
+  const l = serverOrRequest && serverOrRequest.log ? serverOrRequest.log : logger;
+  l.info({ audit: event }, 'audit');
+}
