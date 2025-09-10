@@ -459,6 +459,7 @@ helm install stripemeter ./charts/stripemeter
 - Structured logging
 - Distributed tracing
 - Health check endpoints
+- Alerts: see [ops/ALERTS.md](ops/ALERTS.md)
 
 ## Security & Compliance
 

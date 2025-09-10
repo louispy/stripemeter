@@ -1,0 +1,27 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: default
+  group_by: [alertname]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+
+receivers:
+  - name: default
+    webhook_configs:
+      - url: http://alert-receiver.local/alerts
+        send_resolved: true
+
+# Example: to use email instead of webhook, replace receiver with:
+# receivers:
+#   - name: default
+#     email_configs:
+#       - to: oncall@example.com
+#         from: alerts@example.com
+#         smarthost: smtp.example.com:587
+#         auth_username: alerts@example.com
+#         auth_identity: alerts@example.com
+#         auth_password: ${SMTP_PASSWORD}
+
