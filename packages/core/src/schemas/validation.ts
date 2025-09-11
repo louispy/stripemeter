@@ -10,12 +10,12 @@ const isoDateTimeSchema = z.string().refine(
   { message: 'Invalid ISO 8601 date-time format' }
 );
 
-// UUID validation
-const uuidSchema = z.string().uuid();
+// TenantId: relax from UUID to string for DX; still allow UUIDs but don't require
+const tenantIdSchema = z.string().min(1);
 
 // Usage event schema
 export const usageEventSchema = z.object({
-  tenantId: uuidSchema,
+  tenantId: tenantIdSchema,
   metric: z.string().min(1).max(100),
   customerRef: z.string().min(1).max(255),
   resourceId: z.string().max(255).optional(),
@@ -27,7 +27,7 @@ export const usageEventSchema = z.object({
 });
 
 export const getUsageHistoryQuerySchema = z.object({
-  tenantId: uuidSchema,
+  tenantId: tenantIdSchema,
   customerRef: z.string().min(1).max(255),
   metric: z.string().min(1).max(100),
   periodStart: isoDateTimeSchema,
@@ -42,7 +42,7 @@ export const ingestEventRequestSchema = z.object({
 
 // Get Event List Query schema
 export const getEventsQuerySchema = z.object({
-  tenantId: uuidSchema,
+  tenantId: tenantIdSchema,
   metric: z.string().min(1).max(100).optional(),
   customerRef: z.string().min(1).max(255).optional(),
   source: z.enum(['sdk', 'http', 'etl', 'import', 'system']).optional(),
@@ -56,7 +56,7 @@ export const getEventsQuerySchema = z.object({
 
 // Adjustment schema
 export const adjustmentRequestSchema = z.object({
-  tenantId: uuidSchema,
+  tenantId: tenantIdSchema,
   metric: z.string().min(1).max(100),
   customerRef: z.string().min(1).max(255),
   periodStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -66,7 +66,7 @@ export const adjustmentRequestSchema = z.object({
 
 // Backfill request schema
 export const backfillRequestSchema = z.object({
-  tenantId: uuidSchema,
+  tenantId: tenantIdSchema,
   metric: z.string().min(1).max(100),
   customerRef: z.string().min(1).max(255).optional(),
   periodStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -81,7 +81,7 @@ export const backfillRequestSchema = z.object({
 
 // Projection request schema
 export const projectionRequestSchema = z.object({
-  tenantId: uuidSchema,
+  tenantId: tenantIdSchema,
   customerRef: z.string().min(1).max(255),
   periodStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   periodEnd: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
@@ -89,7 +89,7 @@ export const projectionRequestSchema = z.object({
 
 // Price mapping schema
 export const priceMappingSchema = z.object({
-  tenantId: uuidSchema,
+  tenantId: tenantIdSchema,
   metric: z.string().min(1).max(100),
   aggregation: z.enum(['sum', 'max', 'last']),
   stripeAccount: z.string().startsWith('acct_'),
@@ -101,7 +101,7 @@ export const priceMappingSchema = z.object({
 
 // Alert configuration schema
 export const alertConfigSchema = z.object({
-  tenantId: uuidSchema,
+  tenantId: tenantIdSchema,
   customerRef: z.string().min(1).max(255).optional(),
   metric: z.string().min(1).max(100).optional(),
   type: z.enum(['threshold', 'spike', 'budget']),

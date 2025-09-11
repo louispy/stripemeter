@@ -13,6 +13,7 @@ import {
   type GetEventsResponse,
 } from '@stripemeter/core';
 import { Queue } from 'bullmq';
+import { warnIfNonUuidTenantId } from '../utils/logger';
 
 export const eventsRoutes: FastifyPluginAsync = async (server) => {
   // Lazily import database to play well with test mocks
@@ -184,6 +185,8 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
       const aggregationJobs = new Map<string, any>();
 
       for (const event of inserted) {
+        // Soft guidance: log if tenantId not UUID
+        warnIfNonUuidTenantId(server.log, event.tenantId);
         const periodStart = new Date(event.ts);
         periodStart.setUTCDate(1);
         periodStart.setUTCHours(0, 0, 0, 0);
@@ -235,7 +238,7 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
         type: 'object',
         required: ['tenantId', 'metric', 'periodStart', 'reason'],
         properties: {
-          tenantId: { type: 'string', format: 'uuid' },
+          tenantId: { type: 'string' },
           metric: { type: 'string' },
           customerRef: { type: 'string' },
           periodStart: { type: 'string', format: 'date' },
@@ -270,7 +273,7 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
         type: 'object',
         required: ['tenantId'],
         properties: {
-          tenantId: { type: 'string', format: 'uuid' },
+          tenantId: { type: 'string' },
           metric: { type: 'string' },
           customerRef: { type: 'string' },
           source: { type: 'string' },
