@@ -81,6 +81,28 @@ describe('Events API', () => {
       expect(['accepted','duplicate','error']).toContain(body.results[0].status);
     });
 
+    it('should accept events with non-UUID tenantId', async () => {
+      const events = [
+        {
+          tenantId: 'demo-tenant',
+          metric: 'api_calls',
+          customerRef: 'cus_TEST_NONUUID',
+          quantity: 1,
+          ts: new Date().toISOString(),
+        },
+      ];
+
+      const response = await server.inject({
+        method: 'POST',
+        url: '/v1/events/ingest',
+        payload: { events },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body.accepted + body.duplicates).toBe(events.length);
+    });
+
     it('should handle duplicate events with idempotency', async () => {
       const idempotencyKey = 'evt_test_duplicate_001';
       const event = {

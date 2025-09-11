@@ -50,3 +50,10 @@ export function logAudit(serverOrRequest: any, event: {
   const l = serverOrRequest && serverOrRequest.log ? serverOrRequest.log : logger;
   l.info({ audit: event }, 'audit');
 }
+
+export function warnIfNonUuidTenantId(logger: any, tenantId: string) {
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(tenantId);
+  if (!isUuid) {
+    try { logger?.warn?.({ tenantId }, 'non-uuid tenantId used'); } catch { /* noop */ }
+  }
+}

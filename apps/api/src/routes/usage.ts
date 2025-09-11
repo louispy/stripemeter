@@ -29,7 +29,7 @@ export const usageRoutes: FastifyPluginAsync = async (server) => {
         type: 'object',
         required: ['tenantId', 'customerRef'],
         properties: {
-          tenantId: { type: 'string', format: 'uuid' },
+          tenantId: { type: 'string' },
           customerRef: { type: 'string' },
         },
       },
@@ -139,7 +139,7 @@ export const usageRoutes: FastifyPluginAsync = async (server) => {
         type: 'object',
         required: ['tenantId', 'customerRef'],
         properties: {
-          tenantId: { type: 'string', format: 'uuid' },
+          tenantId: { type: 'string' },
           customerRef: { type: 'string' },
           periodStart: { type: 'string', format: 'date' },
           periodEnd: { type: 'string', format: 'date' },
@@ -296,7 +296,7 @@ export const usageRoutes: FastifyPluginAsync = async (server) => {
         type: 'object',
         required: ['tenantId', 'customerRef', 'metric', 'periodStart', 'periodEnd', 'step'],
         properties: {
-          tenantId: { type: 'string', format: 'uuid' },
+          tenantId: { type: 'string' },
           customerRef: { type: 'string' },
           metric: { type: 'string' },
           periodStart: { type: 'string', format: 'date-time' },
