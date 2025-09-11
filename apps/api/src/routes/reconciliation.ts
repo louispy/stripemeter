@@ -226,8 +226,8 @@ export const reconciliationRoutes: FastifyPluginAsync = async (server) => {
       const rows = await db
         .select({
           metric: priceMappings.metric,
-          local: sql<string>`SUM((${reconciliationReports.localTotal})::numeric)` as unknown as number,
-          stripe: sql<string>`SUM((${reconciliationReports.stripeTotal})::numeric)` as unknown as number,
+          local: sql<number>`SUM((${reconciliationReports.localTotal})::numeric)`,
+          stripe: sql<number>`SUM((${reconciliationReports.stripeTotal})::numeric)`,
           items: sql<number>`COUNT(DISTINCT ${reconciliationReports.subscriptionItemId})`,
         })
         .from(reconciliationReports)
@@ -249,11 +249,12 @@ export const reconciliationRoutes: FastifyPluginAsync = async (server) => {
         .groupBy(priceMappings.metric);
 
       const perMetric = rows.map((r) => {
-        const local = Number(r.local ?? 0);
-        const stripe = Number(r.stripe ?? 0);
+        const metric = String((r as any).metric ?? '');
+        const local = Number((r as any).local ?? 0);
+        const stripe = Number((r as any).stripe ?? 0);
         const drift_abs = Math.abs(local - stripe);
         const drift_pct = stripe > 0 ? drift_abs / stripe : drift_abs > 0 ? 1 : 0;
-        return { metric: r.metric, local, stripe, drift_abs, drift_pct, items: Number(r.items ?? 0) };
+        return { metric, local, stripe, drift_abs, drift_pct, items: Number((r as any).items ?? 0) };
       });
 
       const overallLocal = perMetric.reduce((s, m) => s + m.local, 0);
