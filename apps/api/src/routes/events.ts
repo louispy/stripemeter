@@ -68,6 +68,19 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
           properties: {
             accepted: { type: 'number' },
             duplicates: { type: 'number' },
+            requestId: { type: 'string' },
+            results: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  idempotencyKey: { type: 'string' },
+                  status: { type: 'string', enum: ['accepted', 'duplicate', 'error'] },
+                  error: { type: 'string' },
+                },
+                required: ['idempotencyKey', 'status'],
+              },
+            },
             errors: {
               type: 'array',
               items: {
@@ -89,6 +102,7 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
       return reply.status(400).send({
         accepted: 0,
         duplicates: 0,
+        requestId: request.id,
         errors: validationResult.error.errors.map((err: any, index: number) => ({
           index,
           error: err.message,
@@ -98,6 +112,7 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
 
     const { events: eventBatch } = validationResult.data;
     const errors: Array<{ index: number; error: string }> = [];
+    const results: Array<{ idempotencyKey: string; status: 'accepted' | 'duplicate' | 'error'; error?: string }> = [];
     const eventsToInsert = [];
 
     // Extract optional Idempotency-Key header (case-insensitive, Fastify normalizes to lowercase)
@@ -130,6 +145,7 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
             index: i,
             error: 'Event timestamp too far in the future',
           });
+          results.push({ idempotencyKey, status: 'error', error: 'Event timestamp too far in the future' });
           continue;
         }
 
@@ -145,11 +161,22 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
           index: i,
           error: error instanceof Error ? error.message : 'Unknown error',
         });
+        const fallbackKey = event.idempotencyKey || headerIdempotencyKey || 'unknown';
+        results.push({ idempotencyKey: fallbackKey, status: 'error', error: error instanceof Error ? error.message : 'Unknown error' });
       }
     }
 
     // Insert events into database
     const { inserted, duplicates } = await eventsRepo.upsertBatch(eventsToInsert);
+
+    // Map accepted/duplicate results by idempotencyKey
+    const insertedKeys = new Set(inserted.map((e: any) => e.idempotencyKey));
+    const duplicateKeys = new Set(duplicates);
+    for (const e of eventsToInsert) {
+      const key = e.idempotencyKey as string;
+      if (insertedKeys.has(key)) results.push({ idempotencyKey: key, status: 'accepted' });
+      else if (duplicateKeys.has(key)) results.push({ idempotencyKey: key, status: 'duplicate' });
+    }
 
     // Queue aggregation jobs for inserted events
     if (inserted.length > 0 && aggregationQueue) {
@@ -190,6 +217,8 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
     reply.send({
       accepted: inserted.length,
       duplicates: duplicates.length,
+      requestId: request.id,
+      results,
       ...(errors.length > 0 && { errors }),
     });
   });

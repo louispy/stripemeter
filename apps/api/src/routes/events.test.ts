@@ -75,6 +75,10 @@ describe('Events API', () => {
       expect(body).toHaveProperty('accepted');
       expect(body).toHaveProperty('duplicates');
       expect(body.accepted + body.duplicates).toBe(events.length);
+      expect(typeof body.requestId).toBe('string');
+      expect(Array.isArray(body.results)).toBe(true);
+      expect(body.results[0]).toHaveProperty('idempotencyKey');
+      expect(['accepted','duplicate','error']).toContain(body.results[0].status);
     });
 
     it('should handle duplicate events with idempotency', async () => {
@@ -109,6 +113,8 @@ describe('Events API', () => {
       expect(response2.statusCode).toBe(200);
       const body2 = JSON.parse(response2.body);
       expect(body2.duplicates).toBeGreaterThan(0);
+      const statuses = new Set(body2.results.map((r: any) => r.status));
+      expect(statuses.has('duplicate')).toBe(true);
     });
 
     it('should reject invalid events', async () => {
@@ -156,6 +162,8 @@ describe('Events API', () => {
       const body = JSON.parse(response.body);
       expect(body.errors).toBeDefined();
       expect(body.errors[0].error).toContain('future');
+      const hasError = body.results.some((r: any) => r.status === 'error');
+      expect(hasError).toBe(true);
     });
 
     it('should handle batch of mixed valid and invalid events', async () => {
@@ -250,6 +258,25 @@ describe('Events API', () => {
       expect(r2.statusCode).toBe(200);
       const b2 = JSON.parse(r2.body);
       expect(b2.duplicates).toBe(1);
+    });
+
+    it('should include requestId and per-event results with statuses', async () => {
+      const events = [
+        {
+          tenantId: '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
+          metric: 'api_calls',
+          customerRef: 'cus_TEST004',
+          quantity: 1,
+          ts: new Date().toISOString(),
+        },
+      ];
+      const res = await server.inject({ method: 'POST', url: '/v1/events/ingest', payload: { events } });
+      expect(res.statusCode).toBe(200);
+      const body = JSON.parse(res.body);
+      expect(typeof body.requestId).toBe('string');
+      expect(Array.isArray(body.results)).toBe(true);
+      expect(body.results.length).toBe(1);
+      expect(body.results[0].status).toBeDefined();
     });
   });
 
