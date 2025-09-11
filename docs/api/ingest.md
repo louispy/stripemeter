@@ -7,6 +7,7 @@ POST /v1/events/ingest
 Headers
 - Content-Type: application/json
 - Idempotency-Key (string, optional): Custom idempotency key for the entire batch
+  - Precedence: `event.idempotencyKey` in the body takes priority over the header. If the body event lacks `idempotencyKey`, the header value is applied. If neither are provided, the server deterministically generates one.
 
 Request Body
 ```json
@@ -72,7 +73,8 @@ curl -X POST http://localhost:3000/v1/events/ingest \
 
 Notes
 - Events with the same idempotency key are counted exactly once
-- If no `Idempotency-Key` header is provided, one is generated from the event fields
+- Precedence: body `idempotencyKey` > `Idempotency-Key` header > server-generated key
+- If no `Idempotency-Key` header or body key is provided, one is generated from the event fields
 - The `ts` field should be in ISO 8601 format
 - `meta` can contain any additional JSON data for the event
 - Batch size limit: 1000 events per request

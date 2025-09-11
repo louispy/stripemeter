@@ -2,7 +2,39 @@
  * Integration tests for events API
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+// Bypass API auth for tests
+process.env.BYPASS_AUTH = '1';
+// Mock database layer to avoid external connections
+vi.mock('@stripemeter/database', () => {
+  const store: any[] = [];
+  return {
+    EventsRepository: class {
+      async upsertBatch(batch: any[]) {
+        const inserted: any[] = [];
+        const duplicates: string[] = [];
+        for (const e of batch) {
+          const exists = store.find(x => x.idempotencyKey === e.idempotencyKey);
+          if (exists) {
+            duplicates.push(e.idempotencyKey);
+          } else {
+            store.push(e);
+            inserted.push(e);
+          }
+        }
+        return { inserted, duplicates };
+      }
+      async getEventsByParam(param: any) {
+        const start = Number(param?.offset ?? 0);
+        const end = start + Number(param?.limit ?? store.length);
+        return store.slice(start, end);
+      }
+      async getEventsCountByParam() { return store.length; }
+    },
+    redis: undefined,
+    db: undefined,
+  };
+});
 import { FastifyInstance } from 'fastify';
 import { buildServer } from '../server';
 import { generateIdempotencyKey } from '@stripemeter/core';
@@ -151,6 +183,73 @@ describe('Events API', () => {
       });
 
       expect(response.statusCode).toBe(400);
+    });
+
+    it('should apply Idempotency-Key header when body lacks idempotencyKey', async () => {
+      const headerKey = 'evt_header_only_001';
+      const event = {
+        tenantId: '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
+        metric: 'api_calls',
+        customerRef: 'cus_TEST002',
+        quantity: 10,
+        ts: new Date().toISOString(),
+      };
+
+      const first = await server.inject({
+        method: 'POST',
+        url: '/v1/events/ingest',
+        headers: { 'idempotency-key': headerKey },
+        payload: { events: [event] },
+      });
+
+      expect(first.statusCode).toBe(200);
+      const body1 = JSON.parse(first.body);
+      expect(body1.accepted).toBe(1);
+
+      const second = await server.inject({
+        method: 'POST',
+        url: '/v1/events/ingest',
+        headers: { 'idempotency-key': headerKey },
+        payload: { events: [event] },
+      });
+
+      expect(second.statusCode).toBe(200);
+      const body2 = JSON.parse(second.body);
+      expect(body2.duplicates).toBe(1);
+    });
+
+    it('should give precedence to body idempotencyKey over header', async () => {
+      const headerKey = 'evt_header_precedence_001';
+      const bodyKey = 'evt_body_precedence_001';
+      const event = {
+        tenantId: '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
+        metric: 'api_calls',
+        customerRef: 'cus_TEST003',
+        quantity: 7,
+        ts: new Date().toISOString(),
+        idempotencyKey: bodyKey,
+      };
+
+      const r1 = await server.inject({
+        method: 'POST',
+        url: '/v1/events/ingest',
+        headers: { 'idempotency-key': headerKey },
+        payload: { events: [event] },
+      });
+      expect(r1.statusCode).toBe(200);
+      const b1 = JSON.parse(r1.body);
+      expect(b1.accepted).toBe(1);
+
+      // Re-send with same body key but different header to ensure body is used
+      const r2 = await server.inject({
+        method: 'POST',
+        url: '/v1/events/ingest',
+        headers: { 'idempotency-key': headerKey + '_DIFF' },
+        payload: { events: [event] },
+      });
+      expect(r2.statusCode).toBe(200);
+      const b2 = JSON.parse(r2.body);
+      expect(b2.duplicates).toBe(1);
     });
   });
 

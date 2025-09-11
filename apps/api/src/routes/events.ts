@@ -52,6 +52,15 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
     schema: {
       description: 'Ingest a batch of usage events',
       tags: ['events'],
+      headers: {
+        type: 'object',
+        properties: {
+          'idempotency-key': {
+            type: 'string',
+            description: 'Optional idempotency key to apply when body events lack idempotencyKey',
+          },
+        },
+      },
       // Delegate detailed validation to zod in handler to control error shape
       response: {
         200: {
@@ -91,13 +100,19 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
     const errors: Array<{ index: number; error: string }> = [];
     const eventsToInsert = [];
 
+    // Extract optional Idempotency-Key header (case-insensitive, Fastify normalizes to lowercase)
+    const headerIdempotencyKeyRaw = (request.headers as any)['idempotency-key'];
+    const headerIdempotencyKey = Array.isArray(headerIdempotencyKeyRaw)
+      ? headerIdempotencyKeyRaw[0]
+      : (headerIdempotencyKeyRaw as string | undefined);
+
     // Process each event
     for (let i = 0; i < eventBatch.length; i++) {
       const event = eventBatch[i];
 
       try {
-        // Generate idempotency key if not provided
-        const idempotencyKey = event.idempotencyKey || generateIdempotencyKey({
+        // Apply precedence: event.idempotencyKey > header 'Idempotency-Key' > generated key
+        const idempotencyKey = event.idempotencyKey || headerIdempotencyKey || generateIdempotencyKey({
           tenantId: event.tenantId,
           metric: event.metric,
           customerRef: event.customerRef,
