@@ -6,9 +6,11 @@ import { db, backfillOperations } from '../index';
 import { eq, and, desc, asc, gte, lte, sql } from 'drizzle-orm';
 import type { BackfillOperation, NewBackfillOperation } from '../schema/backfill-operations';
 
+type BackfillStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
+
 export interface BackfillOperationFilters {
   tenantId?: string;
-  status?: string;
+  status?: BackfillStatus;
   periodStart?: string;
   periodEnd?: string;
   limit?: number;
@@ -128,48 +130,56 @@ export class BackfillRepository {
       sortDir = 'desc'
     } = filters;
 
-    let query = db.select().from(backfillOperations);
+    let base = db.select().from(backfillOperations);
 
     // Apply filters
-    const conditions = [];
+    const conditions = [] as any[];
     if (tenantId) conditions.push(eq(backfillOperations.tenantId, tenantId));
     if (status) conditions.push(eq(backfillOperations.status, status));
     if (periodStart) conditions.push(gte(backfillOperations.periodStart, periodStart));
     if (periodEnd) conditions.push(lte(backfillOperations.periodEnd, periodEnd));
 
+    let filtered: any = base;
     if (conditions.length > 0) {
-      query = query.where(and(...conditions));
+      filtered = filtered.where(and(...conditions));
     }
 
     // Apply sorting
-    const sortColumn = backfillOperations[sortBy];
-    if (sortColumn) {
-      query = query.orderBy(sortDir === 'asc' ? asc(sortColumn) : desc(sortColumn));
+    let ordered: any;
+    switch (sortBy) {
+      case 'createdAt':
+        ordered = filtered.orderBy(sortDir === 'asc' ? asc(backfillOperations.createdAt) : desc(backfillOperations.createdAt));
+        break;
+      case 'startedAt':
+        ordered = filtered.orderBy(sortDir === 'asc' ? asc(backfillOperations.startedAt) : desc(backfillOperations.startedAt));
+        break;
+      case 'completedAt':
+        ordered = filtered.orderBy(sortDir === 'asc' ? asc(backfillOperations.completedAt) : desc(backfillOperations.completedAt));
+        break;
+      default:
+        ordered = filtered.orderBy(desc(backfillOperations.createdAt));
     }
 
-    // Apply pagination
-    query = query.limit(limit).offset(offset);
-
-    return await query;
+    // Apply pagination and return
+    return await ordered.limit(limit).offset(offset);
   }
 
   /**
    * Get backfill operation statistics
    */
   async getStats(tenantId?: string): Promise<BackfillOperationStats> {
-    let query = db
+    let baseStats: any = db
       .select({
         status: backfillOperations.status,
         count: sql<number>`count(*)`,
       })
-      .from(backfillOperations)
-      .groupBy(backfillOperations.status);
+      .from(backfillOperations);
 
     if (tenantId) {
-      query = query.where(eq(backfillOperations.tenantId, tenantId));
+      baseStats = baseStats.where(eq(backfillOperations.tenantId, tenantId));
     }
 
-    const results = await query;
+    const results = await baseStats.groupBy(backfillOperations.status);
 
     const stats: BackfillOperationStats = {
       total: 0,

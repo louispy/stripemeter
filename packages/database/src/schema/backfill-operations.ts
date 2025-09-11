@@ -2,7 +2,7 @@
  * Backfill operations schema - Track bulk import operations
  */
 
-import { pgTable, uuid, text, timestamp, jsonb, index, integer, numeric } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, timestamp, jsonb, index, integer } from 'drizzle-orm/pg-core';
 
 export const backfillOperations = pgTable('backfill_operations', {
   id: uuid('id').primaryKey().defaultRandom(),
