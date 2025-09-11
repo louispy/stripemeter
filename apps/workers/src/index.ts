@@ -9,6 +9,7 @@ import { StripeWriterWorker } from './workers/stripe-writer';
 import { ReconcilerWorker } from './workers/reconciler';
 import { AlertMonitorWorker } from './workers/alert-monitor';
 import { SimulationRunnerWorker } from './workers/simulation-runner';
+import { BackfillWorker } from './workers/backfill';
 import { redis } from '@stripemeter/database';
 import { startWorkerHttpServer } from './http';
 
@@ -24,6 +25,7 @@ async function start() {
     const reconciler = new ReconcilerWorker();
     const alertMonitor = new AlertMonitorWorker();
     const simulationRunner = new SimulationRunnerWorker();
+    const backfill = new BackfillWorker();
 
     // Start all workers
     await Promise.all([
@@ -32,6 +34,7 @@ async function start() {
       reconciler.start(),
       alertMonitor.start(),
       simulationRunner.start(),
+      backfill.start(),
     ]);
 
     logger.info('✅ All workers started successfully');
@@ -46,6 +49,7 @@ async function start() {
         reconciler.stop(),
         alertMonitor.stop(),
         simulationRunner.stop(),
+        backfill.stop(),
       ]);
 
       await redis.quit();
