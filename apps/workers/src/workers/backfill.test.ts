@@ -24,6 +24,11 @@ vi.mock('@stripemeter/database', () => ({
   backfillOperations: {},
   redis: {
     setex: vi.fn().mockResolvedValue('OK')
+  },
+  BackfillRepository: class {
+    updateStatus = vi.fn().mockResolvedValue(undefined);
+    update = vi.fn().mockResolvedValue(undefined);
+    updateProgress = vi.fn().mockResolvedValue(undefined);
   }
 }));
 
@@ -161,7 +166,7 @@ test-tenant,api_calls,customer-1,100,2024-01-15T10:00:00Z,import,"{""region"":""
 
       // This would be caught by the schema validation
       expect(invalidEvent.quantity).not.toBeTypeOf('number');
-      expect(() => new Date(invalidEvent.ts)).toThrow();
+      expect(Number.isNaN(new Date(invalidEvent.ts).getTime())).toBe(true);
     });
   });
 
