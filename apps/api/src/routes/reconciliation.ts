@@ -31,7 +31,7 @@ export const reconciliationRoutes: FastifyPluginAsync = async (server) => {
         type: 'object',
         required: ['tenantId'],
         properties: {
-          tenantId: { type: 'string', format: 'uuid' },
+          tenantId: { type: 'string' },
         },
       },
       response: {
@@ -120,7 +120,7 @@ export const reconciliationRoutes: FastifyPluginAsync = async (server) => {
         type: 'object',
         required: ['tenantId'],
         properties: {
-          tenantId: { type: 'string', format: 'uuid' },
+          tenantId: { type: 'string' },
         },
       },
       response: {
@@ -156,7 +156,7 @@ export const reconciliationRoutes: FastifyPluginAsync = async (server) => {
         type: 'object',
         required: ['tenantId', 'periodStart', 'periodEnd'],
         properties: {
-          tenantId: { type: 'string', format: 'uuid' },
+          tenantId: { type: 'string' },
           periodStart: { type: 'string', pattern: '^\\d{4}-\\d{2}$' },
           periodEnd: { type: 'string', pattern: '^\\d{4}-\\d{2}$' },
         },
