@@ -117,6 +117,19 @@ export interface UsageResponse {
   }>;
 }
 
+
+
+export interface GetUsageHistoryResponse {
+  usage: Array<{
+    ts: string;
+    value: number;
+  }>;
+  errors?: Array<{
+    index: number;
+    error: string;
+  }>;
+}
+
 export interface ReconciliationResponse {
   period: string;
   reports: ReconciliationReport[];
