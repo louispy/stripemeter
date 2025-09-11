@@ -45,7 +45,7 @@ export async function loadConfig(): Promise<StripeMeterConfig> {
     const configModule = await import(configPath);
     loadedConfig = configModule.default || configModule;
     console.log('[Config] Loaded custom configuration from', configPath);
-    return loadedConfig;
+    return loadedConfig as StripeMeterConfig;
   } catch (error) {
     // If config file doesn't exist or can't be loaded, use defaults
     console.log('[Config] Using default configuration (no custom config found)');
