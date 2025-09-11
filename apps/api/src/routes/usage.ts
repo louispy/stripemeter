@@ -3,11 +3,12 @@
  */
 
 import { FastifyPluginAsync } from 'fastify';
-import type { UsageResponse, ProjectionResponse } from '@stripemeter/core';
-import { getCurrentPeriod } from '@stripemeter/core';
-import { db, counters, priceMappings, redis } from '@stripemeter/database';
+import type { UsageResponse, ProjectionResponse, GetUsageHistoryResponse } from '@stripemeter/core';
+import { getCurrentPeriod, getUsageHistoryQuerySchema } from '@stripemeter/core';
+import { db, counters, priceMappings, redis, events } from '@stripemeter/database';
 import { InvoiceSimulator, type UsageLineItem, type PriceConfig } from '@stripemeter/pricing-lib';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, gte, lte, sql } from 'drizzle-orm';
+import { GetUsageHistoryQueryInput } from '@stripemeter/core';
 
 export const usageRoutes: FastifyPluginAsync = async (server) => {
   /**
@@ -109,7 +110,7 @@ export const usageRoutes: FastifyPluginAsync = async (server) => {
       }));
 
       // Cache metrics briefly
-      await redis.set(cacheKey, JSON.stringify(metrics), 'EX', 30).catch(() => {});
+      await redis.set(cacheKey, JSON.stringify(metrics), 'EX', 30).catch(() => { });
 
       reply.send({ customerRef, period: { start, end }, metrics, alerts: [] });
     } catch (_err) {
@@ -275,6 +276,156 @@ export const usageRoutes: FastifyPluginAsync = async (server) => {
         total: 0,
         currency: 'USD',
         freshness: { lastUpdate: new Date().toISOString(), staleness: 0 },
+      });
+    }
+  });
+
+
+  /**
+   * POST /v1/usage/history
+   * Get usage history in time buckets for a customer
+   */
+  server.get<{
+    Querystring: GetUsageHistoryQueryInput;
+    Reply: GetUsageHistoryResponse;
+  }>('/history', {
+    schema: {
+      description: 'Get usage history in time buckets for a customer',
+      tags: ['usage'],
+      querystring: {
+        type: 'object',
+        required: ['tenantId', 'customerRef', 'metric', 'periodStart', 'periodEnd', 'step'],
+        properties: {
+          tenantId: { type: 'string', format: 'uuid' },
+          customerRef: { type: 'string' },
+          metric: { type: 'string' },
+          periodStart: { type: 'string', format: 'date-time' },
+          periodEnd: { type: 'string', format: 'date-time' },
+          step: { type: 'string', enum: ['day', 'month'], default: 'month' },
+        },
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            usage: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  ts: { type: 'string' },
+                  value: { type: 'number' },
+                }
+              },
+            },
+          },
+        },
+      },
+    },
+  }, async (request, reply) => {
+    const validationResult = getUsageHistoryQuerySchema.safeParse(request.query);
+    if (!validationResult.success) {
+      return reply.status(400).send({
+        usage: [],
+        errors: validationResult.error.errors.map((err: any, index: number) => ({
+          index,
+          error: err.message,
+        })),
+      });
+    }
+
+    const { tenantId, metric, customerRef, periodStart, periodEnd, step } = request.query;
+
+    const cacheKey = `usage-history:${JSON.stringify({ tenantId, metric, customerRef, periodStart, periodEnd, step })}`;
+    const cached = await redis.get(cacheKey).catch(() => null);
+    if (cached) {
+      const usage = JSON.parse(cached) as GetUsageHistoryResponse['usage'];
+      return reply.send({ usage });
+    }
+
+    const periodStartDate = new Date(periodStart);
+    const periodEndDate = new Date(periodEnd);
+
+    try {
+      // Fetch active price mappings to know which metrics to include and how to aggregate
+      const mappings = await db
+        .select({
+          metric: priceMappings.metric,
+          aggregation: priceMappings.aggregation,
+          currency: priceMappings.currency,
+        })
+        .from(priceMappings)
+        .where(
+          and(
+            eq(priceMappings.tenantId, tenantId),
+            eq(priceMappings.active, true as any),
+          ),
+        );
+      // Calculate aggregations from events
+      const aggregations = await db
+        .select({
+          bucket: sql<Date>`date_trunc('${sql.raw(step)}', ${events.ts})`.as('bucket'),
+          sum: sql<string>`COALESCE(SUM(${events.quantity}), 0)::numeric`,
+          max: sql<string>`COALESCE(MAX(${events.quantity}), 0)::numeric`,
+          last: sql<string>`(
+            SELECT ${events.quantity} 
+            FROM ${events} 
+            WHERE ${events.tenantId} = ${tenantId}
+              AND ${events.metric} = ${metric}
+              AND ${events.customerRef} = ${customerRef}
+              AND ${events.ts} >= ${periodStartDate}
+              AND ${events.ts} <= ${periodEndDate}
+            ORDER BY ${events.ts} DESC
+            LIMIT 1
+          )::numeric`,
+          maxTs: sql<Date>`MAX(${events.ts})`,
+        })
+        .from(events)
+        .where(
+          and(
+            eq(events.tenantId, tenantId),
+            eq(events.metric, metric),
+            eq(events.customerRef, customerRef),
+            gte(events.ts, periodStartDate),
+            lte(events.ts, periodEndDate),
+          )
+        )
+        .groupBy(sql`bucket`)
+        .orderBy(sql`bucket ASC`);
+
+      // Map metric -> value according to aggregation type
+      const mapping = mappings.find(m => m.metric === metric);
+
+      const usage: GetUsageHistoryResponse['usage'] = aggregations.map(agg => {
+        const usage = {
+          ts: agg.bucket.toISOString(),
+          value: Number(agg.sum ?? 0),
+        };
+
+        if (mapping) {
+          switch (mapping.aggregation) {
+            case 'max':
+              usage.value = Number(agg.max ?? 0);
+              break;
+            case 'last':
+              usage.value = Number(agg.last ?? 0);
+              break;
+          }
+        }
+
+        return usage;
+      });
+
+      // cache response
+      await redis.set(cacheKey, JSON.stringify(usage), 'EX', 30).catch(() => {});
+
+      reply.status(200).send({
+        usage,
+      });
+    } catch (_err) {
+      reply.status(400).send({
+        usage: [],
+        errors: [{ index: 0, error: _err as unknown as string }],
       });
     }
   });

@@ -26,6 +26,15 @@ export const usageEventSchema = z.object({
   source: z.enum(['sdk', 'http', 'etl', 'import', 'system']).optional(),
 });
 
+export const getUsageHistoryQuerySchema = z.object({
+  tenantId: uuidSchema,
+  customerRef: z.string().min(1).max(255),
+  metric: z.string().min(1).max(100),
+  periodStart: isoDateTimeSchema,
+  periodEnd: isoDateTimeSchema,
+  step: z.enum(['day', 'month']).optional().default('month'),
+});
+
 // Batch event ingestion schema
 export const ingestEventRequestSchema = z.object({
   events: z.array(usageEventSchema).min(1).max(1000),
@@ -104,6 +113,7 @@ export const alertConfigSchema = z.object({
 
 // Type exports
 export type UsageEventInput = z.infer<typeof usageEventSchema>;
+export type GetUsageHistoryQueryInput = z.infer<typeof getUsageHistoryQuerySchema>;
 export type IngestEventRequestInput = z.infer<typeof ingestEventRequestSchema>;
 export type GetEventsQueryInput = z.infer<typeof getEventsQuerySchema>;
 export type AdjustmentRequestInput = z.infer<typeof adjustmentRequestSchema>;
