@@ -3,15 +3,15 @@
  */
 
 import { Worker, Queue, Job } from 'bullmq';
-import { redis, db, events, counters, adjustments, BackfillRepository } from '@stripemeter/database';
-import { eq, and, gte, lte, sql } from 'drizzle-orm';
+import { redis, db, events, BackfillRepository } from '@stripemeter/database';
+// no drizzle conditions used here
 import { logger } from '../utils/logger';
-import { generateIdempotencyKey, isEventTooLate, getPeriodEnd } from '@stripemeter/core';
+import { generateIdempotencyKey } from '@stripemeter/core';
 import { z } from 'zod';
 
 // CSV parsing
 import { parse } from 'csv-parse/sync';
-import { stringify } from 'csv-stringify/sync';
+// no stringify used
 
 // S3/MinIO client setup
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
@@ -108,7 +108,7 @@ export class BackfillWorker {
   }
 
   private async processBackfill(data: BackfillJob) {
-    const { operationId, tenantId, metric, customerRef, periodStart, periodEnd, sourceType, sourceData, sourceUrl, reason, actor } = data;
+    const { operationId, tenantId, metric, customerRef, periodStart, periodEnd, sourceType, sourceData, sourceUrl } = data;
     
     logger.info(`Processing backfill operation ${operationId} for ${tenantId}/${metric}`);
 
@@ -217,7 +217,7 @@ export class BackfillWorker {
   }
 
   private async processEventBatch(
-    operationId: string,
+    _operationId: string,
     eventBatch: any[],
     tenantId: string,
     metric: string,
@@ -277,13 +277,12 @@ export class BackfillWorker {
 
     // Insert events into database
     try {
-      const { inserted, duplicates: duplicateKeys } = await db
+      const inserted = await db
         .insert(events)
         .values(eventsToInsert)
         .onConflictDoNothing()
-        .returning({ idempotencyKey: events.idempotencyKey });
+        .returning({ idempotencyKey: events.idempotencyKey, tenantId: events.tenantId, metric: events.metric, customerRef: events.customerRef, ts: events.ts });
 
-      duplicates = duplicateKeys.length;
       const processed = inserted.length;
 
       // Queue aggregation jobs for inserted events
@@ -298,7 +297,7 @@ export class BackfillWorker {
     }
   }
 
-  private async queueAggregationJobs(insertedEvents: any[], tenantId: string, metric: string) {
+  private async queueAggregationJobs(insertedEvents: any[], _tenantId: string, _metric: string) {
     // Group by tenant, metric, customer, period for efficient aggregation
     const aggregationJobs = new Map<string, any>();
 
