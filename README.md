@@ -1,7 +1,25 @@
-# StripeMeter
+# StripeMeter — pre-invoice parity for Stripe usage billing
 
-> **Open-source usage metering & reconciliation for Stripe Billing**  
-> Stop **billing drift** from late events, retries, and backfills so **invoices match reality**.
+- **Exactly-once ingest**: duplicates are counted once.
+- **Late-event replay**: watermark-based reconciliation.
+- **Pre-invoice reconciliation**: drift goes to **0** before Stripe finalizes invoices.
+
+[Open in Codespaces](https://github.com/codespaces/new?hide_repo_select=true&ref=main&repo=geminimir/stripemeter)
+· [5-min Quickstart](#quickstart)
+· [Run the Parity Demo](docs/demos/parity-scenario-test-clocks.md)
+
+---
+
+### Parity Challenge
+Run our test-clock parity demo. If we can't get your **pre-invoice** drift to zero, we'll buy your team coffee.  
+*Rules:* test data only; 1-hour cap; anonymized notes OK.
+
+---
+
+### What StripeMeter isn't
+- Not a **pricing** or **entitlement** layer (use a pricing stack like Autumn; StripeMeter ensures usage **numbers are correct**).
+- Not a data warehouse.
+- Throughput targets: laptop p95 ingest ≤ **25 ms**, late-event replay (10k) ≤ **2 s**. Scale with queue/workers for higher volumes.
 
 [![CI](https://github.com/geminimir/stripemeter/actions/workflows/ci.yml/badge.svg)](https://github.com/geminimir/stripemeter/actions/workflows/ci.yml)
 [![GitHub release](https://img.shields.io/github/v/release/geminimir/stripemeter)](https://github.com/geminimir/stripemeter/releases)
@@ -31,7 +49,7 @@ A small service you run next to your app: it **dedupes** retries, handles **late
 
 ---
 
-## Try in 5 minutes
+## Quickstart
 (Optional preflight: `bash scripts/preflight.sh`)
 
 ```bash
@@ -80,6 +98,9 @@ npx autocannon -m POST -H 'content-type: application/json' \
 # Spot-check metrics after a short send
 curl -s http://localhost:3000/metrics | grep -E "http_request_duration|process_" || true
 ```
+
+### Configure metrics (optional)
+Put a tiny config in `examples/config/stripemeter.config.ts` to map `metric → counter` and choose a `watermarkWindowSeconds`.
 
 ### Pick your case (examples)
 
