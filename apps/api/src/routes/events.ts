@@ -6,11 +6,13 @@ import { FastifyPluginAsync } from 'fastify';
 import {
   ingestEventRequestSchema,
   getEventsQuerySchema,
+  backfillRequestSchema,
   generateIdempotencyKey,
   type IngestEventRequestInput,
   type IngestEventResponse,
   type GetEventsQueryInput,
   type GetEventsResponse,
+  type BackfillRequestInput,
 } from '@stripemeter/core';
 import { Queue } from 'bullmq';
 import { warnIfNonUuidTenantId } from '../utils/logger';
@@ -18,10 +20,12 @@ import { warnIfNonUuidTenantId } from '../utils/logger';
 export const eventsRoutes: FastifyPluginAsync = async (server) => {
   // Lazily import database to play well with test mocks
   let EventsRepositoryCtor: any;
+  let BackfillRepositoryCtor: any;
   let redisConn: any;
   try {
     const mod: any = await import('@stripemeter/database');
     EventsRepositoryCtor = mod.EventsRepository;
+    BackfillRepositoryCtor = mod.BackfillRepository;
     redisConn = mod.redis;
   } catch (_e) {
     EventsRepositoryCtor = class {
@@ -29,9 +33,17 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
       async getEventsByParam() { return []; }
       async getEventsCountByParam() { return 0; }
     };
+    BackfillRepositoryCtor = class {
+      async create() { return {}; }
+      async getById() { return null; }
+      async update() { return null; }
+      async updateStatus() { return null; }
+      async list() { return []; }
+    };
     redisConn = undefined;
   }
   const eventsRepo = new EventsRepositoryCtor();
+  const backfillRepo = new BackfillRepositoryCtor();
 
   const aggregationQueue = redisConn ? new Queue('aggregation', {
     connection: redisConn,
@@ -40,6 +52,16 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
       removeOnFail: 1000,
       attempts: 3,
       backoff: { type: 'exponential', delay: 2000 },
+    },
+  }) : undefined as unknown as Queue;
+
+  const backfillQueue = redisConn ? new Queue('backfill', {
+    connection: redisConn,
+    defaultJobOptions: {
+      removeOnComplete: 50,
+      removeOnFail: 100,
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 5000 },
     },
   }) : undefined as unknown as Queue;
   /**
@@ -230,7 +252,9 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
    * POST /v1/events/backfill
    * Backfill historical events
    */
-  server.post('/backfill', {
+  server.post<{
+    Body: BackfillRequestInput;
+  }>('/backfill', {
     schema: {
       description: 'Backfill historical usage events',
       tags: ['events'],
@@ -248,15 +272,282 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
           reason: { type: 'string' },
         },
       },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            operationId: { type: 'string' },
+            status: { type: 'string' },
+            message: { type: 'string' },
+          },
+        },
+        400: {
+          type: 'object',
+          properties: {
+            error: { type: 'string' },
+            message: { type: 'string' },
+          },
+        },
+      },
     },
-  }, async (_request, reply) => {
-    // TODO: Implement backfill logic
-    reply.status(501).send({
-      error: 'Not Implemented',
-      message: 'Backfill endpoint is under development'
-    });
+  }, async (request, reply) => {
+    // Validate request body
+    const validationResult = backfillRequestSchema.safeParse(request.body);
+    if (!validationResult.success) {
+      return reply.status(400).send({
+        error: 'Validation Error',
+        message: validationResult.error.errors.map(err => err.message).join(', '),
+      });
+    }
+
+    const { tenantId, metric, customerRef, periodStart, periodEnd, events, csvData, reason } = validationResult.data;
+
+    try {
+      // Determine source type and data
+      let sourceType: 'json' | 'csv' | 'api';
+      let sourceData: string | undefined;
+      let sourceUrl: string | undefined;
+
+      if (events && events.length > 0) {
+        sourceType = 'json';
+        sourceData = JSON.stringify(events);
+      } else if (csvData) {
+        sourceType = 'csv';
+        sourceData = csvData;
+      } else {
+        return reply.status(400).send({
+          error: 'Invalid Request',
+          message: 'Either events or csvData must be provided',
+        });
+      }
+
+      // For large data, we could upload to S3/MinIO here
+      // For now, we'll store small data directly
+      const dataSize = sourceData.length;
+      const maxDirectSize = parseInt(process.env.MAX_DIRECT_BACKFILL_SIZE || '1048576', 10); // 1MB default
+
+      if (dataSize > maxDirectSize) {
+        // TODO: Implement S3/MinIO upload for large data
+        return reply.status(413).send({
+          error: 'Payload Too Large',
+          message: `Data size (${dataSize} bytes) exceeds maximum direct size (${maxDirectSize} bytes). S3/MinIO upload not yet implemented.`,
+        });
+      }
+
+      // Create backfill operation record
+      const operation = await backfillRepo.create({
+        tenantId,
+        metric,
+        customerRef,
+        periodStart,
+        periodEnd: periodEnd || periodStart,
+        status: 'pending',
+        reason,
+        actor: 'api:backfill', // TODO: Extract from auth context
+        sourceType,
+        sourceData,
+        sourceUrl,
+        metadata: {
+          requestId: request.id,
+          userAgent: request.headers['user-agent'],
+          ip: request.ip,
+        },
+      });
+
+      // Queue backfill job
+      if (backfillQueue) {
+        await backfillQueue.add('process-backfill', {
+          operationId: operation.id,
+          tenantId,
+          metric,
+          customerRef,
+          periodStart,
+          periodEnd: periodEnd || periodStart,
+          sourceType,
+          sourceData,
+          sourceUrl,
+          reason,
+          actor: 'api:backfill',
+        }, {
+          jobId: operation.id,
+          attempts: 3,
+          backoff: {
+            type: 'exponential',
+            delay: 5000,
+          },
+        });
+      }
+
+      reply.send({
+        operationId: operation.id,
+        status: 'pending',
+        message: 'Backfill operation queued successfully',
+      });
+
+    } catch (error) {
+      server.log.error('Backfill request failed:', error);
+      reply.status(500).send({
+        error: 'Internal Server Error',
+        message: 'Failed to process backfill request',
+      });
+    }
   });
 
+  /**
+   * GET /v1/events/backfill/:operationId
+   * Get backfill operation status
+   */
+  server.get<{
+    Params: { operationId: string };
+  }>('/backfill/:operationId', {
+    schema: {
+      description: 'Get backfill operation status',
+      tags: ['events'],
+      params: {
+        type: 'object',
+        properties: {
+          operationId: { type: 'string', format: 'uuid' },
+        },
+        required: ['operationId'],
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            tenantId: { type: 'string' },
+            metric: { type: 'string' },
+            customerRef: { type: 'string' },
+            periodStart: { type: 'string' },
+            periodEnd: { type: 'string' },
+            status: { type: 'string' },
+            reason: { type: 'string' },
+            actor: { type: 'string' },
+            totalEvents: { type: 'number' },
+            processedEvents: { type: 'number' },
+            failedEvents: { type: 'number' },
+            duplicateEvents: { type: 'number' },
+            sourceType: { type: 'string' },
+            errorMessage: { type: 'string' },
+            startedAt: { type: 'string' },
+            completedAt: { type: 'string' },
+            createdAt: { type: 'string' },
+            updatedAt: { type: 'string' },
+          },
+        },
+        404: {
+          type: 'object',
+          properties: {
+            error: { type: 'string' },
+            message: { type: 'string' },
+          },
+        },
+      },
+    },
+  }, async (request, reply) => {
+    const { operationId } = request.params;
+
+    try {
+      const operation = await backfillRepo.getById(operationId);
+      
+      if (!operation) {
+        return reply.status(404).send({
+          error: 'Not Found',
+          message: 'Backfill operation not found',
+        });
+      }
+
+      reply.send(operation);
+    } catch (error) {
+      server.log.error('Failed to get backfill operation:', error);
+      reply.status(500).send({
+        error: 'Internal Server Error',
+        message: 'Failed to retrieve backfill operation',
+      });
+    }
+  });
+
+  /**
+   * GET /v1/events/backfill
+   * List backfill operations
+   */
+  server.get<{
+    Querystring: {
+      tenantId?: string;
+      status?: string;
+      limit?: number;
+      offset?: number;
+    };
+  }>('/backfill', {
+    schema: {
+      description: 'List backfill operations',
+      tags: ['events'],
+      querystring: {
+        type: 'object',
+        properties: {
+          tenantId: { type: 'string' },
+          status: { type: 'string', enum: ['pending', 'processing', 'completed', 'failed', 'cancelled'] },
+          limit: { type: 'number', minimum: 1, maximum: 100, default: 50 },
+          offset: { type: 'number', minimum: 0, default: 0 },
+        },
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            operations: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: { type: 'string' },
+                  tenantId: { type: 'string' },
+                  metric: { type: 'string' },
+                  customerRef: { type: 'string' },
+                  periodStart: { type: 'string' },
+                  periodEnd: { type: 'string' },
+                  status: { type: 'string' },
+                  reason: { type: 'string' },
+                  actor: { type: 'string' },
+                  totalEvents: { type: 'number' },
+                  processedEvents: { type: 'number' },
+                  failedEvents: { type: 'number' },
+                  duplicateEvents: { type: 'number' },
+                  sourceType: { type: 'string' },
+                  errorMessage: { type: 'string' },
+                  startedAt: { type: 'string' },
+                  completedAt: { type: 'string' },
+                  createdAt: { type: 'string' },
+                  updatedAt: { type: 'string' },
+                },
+              },
+            },
+            total: { type: 'number' },
+          },
+        },
+      },
+    },
+  }, async (request, reply) => {
+    try {
+      const operations = await backfillRepo.list({
+        tenantId: request.query.tenantId,
+        status: request.query.status,
+        limit: request.query.limit,
+        offset: request.query.offset,
+      });
+
+      reply.send({
+        operations,
+        total: operations.length,
+      });
+    } catch (error) {
+      server.log.error('Failed to list backfill operations:', error);
+      reply.status(500).send({
+        error: 'Internal Server Error',
+        message: 'Failed to list backfill operations',
+      });
+    }
+  });
 
   /**
    * GET /v1/events

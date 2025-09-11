@@ -15,3 +15,4 @@ export * from './projects';
 export * from './api-keys';
 export * from './roles';
 export * from './audit-logs';
+export * from './backfill-operations';
