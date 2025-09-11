@@ -53,6 +53,12 @@ export interface ProjectionRequest {
 export interface IngestEventResponse {
   accepted: number;
   duplicates: number;
+  requestId: string;
+  results?: Array<{
+    idempotencyKey: string;
+    status: 'accepted' | 'duplicate' | 'error';
+    error?: string;
+  }>;
   errors?: Array<{
     index: number;
     error: string;

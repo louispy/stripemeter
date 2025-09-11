@@ -34,8 +34,14 @@ Response
 ```json
 {
   "accepted": 1,
-  "rejected": 0,
   "duplicates": 0,
+  "requestId": "req-123",
+  "results": [
+    {
+      "idempotencyKey": "evt_abc123",
+      "status": "accepted"
+    }
+  ],
   "errors": []
 }
 ```
