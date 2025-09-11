@@ -76,3 +76,12 @@ Notes
 See `ops/alertmanager/alertmanager.yml` for a minimal route/receiver.
 
 
+### What to do next (Runbook)
+
+When any reconciliation alert fires, follow the operator playbook:
+
+- Read `RECONCILIATION.md` → Steps 1–6 (verify health, inspect drift, replay window, confirm resolution)
+- Use copy-paste commands for `/metrics`, Replay API, and reconciliation summary
+- Validate drift is back within epsilon (≤ 0.5%) before closing the alert
+
+
