@@ -1,0 +1,63 @@
+name: parity-check
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "dry-run or apply"
+        required: false
+        default: "dry-run"
+jobs:
+  run-parity:
+    runs-on: ubuntu-latest
+    env:
+      # Optional; demo-mode should work without secrets.
+      STRIPE_API_KEY: ${{ secrets.STRIPE_API_KEY }}
+      NODE_ENV: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PNPM
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Start API (background)
+        run: pnpm --filter @stripemeter/api dev &
+        shell: bash
+
+      - name: Wait for API readiness
+        run: |
+          for i in {1..60}; do
+            curl -sf http://localhost:3000/health/ready && exit 0
+            sleep 2
+          done
+          echo "API not ready"; exit 1
+
+      - name: Run parity scenario (test clocks)
+        run: |
+          chmod +x docs/demos/run-parity-scenario.sh
+          docs/demos/run-parity-scenario.sh --mode "${{ github.event.inputs.mode || 'dry-run' }}"
+        shell: bash
+
+      - name: Upload parity report
+        uses: actions/upload-artifact@v4
+        with:
+          name: parity-report
+          path: |
+            artifacts/parity-report.json
+            artifacts/parity-log.txt
+          if-no-files-found: error
+          retention-days: 14
