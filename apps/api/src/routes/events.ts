@@ -254,6 +254,7 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
    */
   server.post<{
     Body: BackfillRequestInput;
+    Reply: any;
   }>('/backfill', {
     schema: {
       description: 'Backfill historical usage events',
@@ -385,7 +386,7 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
       });
 
     } catch (error) {
-      server.log.error('Backfill request failed:', error);
+      server.log.error({ err: error }, 'Backfill request failed');
       reply.status(500).send({
         error: 'Internal Server Error',
         message: 'Failed to process backfill request',
@@ -399,6 +400,7 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
    */
   server.get<{
     Params: { operationId: string };
+    Reply: any;
   }>('/backfill/:operationId', {
     schema: {
       description: 'Get backfill operation status',
@@ -459,7 +461,7 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
 
       reply.send(operation);
     } catch (error) {
-      server.log.error('Failed to get backfill operation:', error);
+      server.log.error({ err: error }, 'Failed to get backfill operation');
       reply.status(500).send({
         error: 'Internal Server Error',
         message: 'Failed to retrieve backfill operation',
@@ -478,6 +480,7 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
       limit?: number;
       offset?: number;
     };
+    Reply: any;
   }>('/backfill', {
     schema: {
       description: 'List backfill operations',
@@ -541,7 +544,7 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
         total: operations.length,
       });
     } catch (error) {
-      server.log.error('Failed to list backfill operations:', error);
+      server.log.error({ err: error }, 'Failed to list backfill operations');
       reply.status(500).send({
         error: 'Internal Server Error',
         message: 'Failed to list backfill operations',
