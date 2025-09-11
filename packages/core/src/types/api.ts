@@ -145,3 +145,27 @@ export interface HealthResponse {
     reconciliationDiff: number;
   };
 }
+
+// Reconciliation summary types
+export interface ReconciliationSummaryMetric {
+  metric: string;
+  local: number;
+  stripe: number;
+  drift_abs: number;
+  drift_pct: number;
+  items: number;
+}
+
+export interface ReconciliationSummaryResponse {
+  periodStart: string; // YYYY-MM
+  periodEnd: string;   // YYYY-MM
+  perMetric: ReconciliationSummaryMetric[];
+  overall: {
+    local: number;
+    stripe: number;
+    drift_abs: number;
+    drift_pct: number;
+    metrics: number;
+    items: number;
+  };
+}
