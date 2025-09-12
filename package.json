@@ -1,6 +1,6 @@
 {
   "name": "stripemeter",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Stripe-native usage metering and cost experience platform",
   "private": true,
   "scripts": {

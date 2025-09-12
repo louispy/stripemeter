@@ -1,4 +1,4 @@
-# API — Replay (v0.2.0)
+# API — Replay (v0.3.0)
 
 [← Back to Welcome](../welcome.md)
 
@@ -21,6 +21,8 @@ Parameters
 - `since` (string, required): Start time for replay (ISO 8601 or relative like "-PT24H")
 - `until` (string, required): End time for replay (ISO 8601 or "now")
 - `mode` (string, required): Either "dry-run" or "apply"
+- `cursor` (string, optional): Pagination cursor for multi-page replays
+- `watermark` (string, optional): Watermark timestamp; events after this are handled as adjustments
 
 Response (dry-run)
 ```json
@@ -40,6 +42,8 @@ Response (dry-run)
       "affectedCustomers": ["cus_123", "cus_456"]
     }
   },
+  "cursor": "eyJwYWdlIjoyfQ==",
+  "watermark": "2025-01-16T00:00:00Z",
   "summary": "Would update 2 counters with +50 total delta"
 }
 ```
@@ -62,6 +66,8 @@ Response (apply)
       "affectedCustomers": ["cus_123", "cus_456"]
     }
   },
+  "cursor": null,
+  "watermark": "2025-01-16T00:00:00Z",
   "applied": true,
   "summary": "Updated 2 counters with +50 total delta"
 }
@@ -97,3 +103,4 @@ Notes
 - Replay processes events within the watermark window (configurable per metric)
 - Late events outside the watermark become adjustments
 - Use relative times like "-PT24H" for rolling windows
+- Use `cursor` to iterate long ranges; pass the returned value to continue

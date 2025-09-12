@@ -1,4 +1,4 @@
-# API — Ingest (v0.2.0)
+# API — Ingest (v0.3.0)
 
 [← Back to Welcome](../welcome.md)
 
@@ -30,7 +30,7 @@ Request Body
 }
 ```
 
-Response
+Response (per-event results)
 ```json
 {
   "accepted": 1,
