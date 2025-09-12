@@ -1,9 +1,9 @@
-# API — Events (v0.2.0)
+# API — Events (v0.3.0)
 
 GET /v1/events
 
 Query params
-- tenantId (string, required, UUID)
+- tenantId (string, required)
 - metric (string, optional)
 - customerRef (string, optional)
 - source (string, optional)

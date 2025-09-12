@@ -16,9 +16,9 @@ StripeMeter helps you **prove and enforce pre-invoice parity** for Stripe usage 
 ## 2) Replay (fix late events within a watermark window)
 - Endpoint: `POST /v1/replay`  
 - Run **dry-run** to see the delta, or **apply** to update counters.  
-- Deterministic **parity report** is written by the demo script.
+- Deterministic **parity report** via the Reconciliation Summary.
 
-**Read next:** [Replay API](./api/replay.md)
+**Read next:** [Reconciliation Summary API](./api/reconciliation-summary.md)
 
 ---
 
@@ -28,3 +28,11 @@ StripeMeter helps you **prove and enforce pre-invoice parity** for Stripe usage 
 - Use the **Parity Visualizer** to see the time-series change after replay.
 
 **Read next:** [Reconciliation Summary API](./api/reconciliation-summary.md)
+
+---
+
+## 4) Usage History (visualize counters over time)
+- Endpoint: `GET /v1/usage/history`  
+- Returns **time-series** and **totals** for dashboards before/after replay.
+
+**Read next:** [Usage History API](./api/usage-history.md)

@@ -7,7 +7,7 @@
 [![Community](https://img.shields.io/badge/Join-Community-blue)](https://github.com/geminimir/stripemeter/discussions)
 [![Contributors](https://img.shields.io/github/contributors/geminimir/stripemeter.svg)](https://github.com/geminimir/stripemeter/graphs/contributors)
 
-**Stability: Beta (v0.2.0)** — See [Release Notes](docs/RELEASE_NOTES_v0.2.0.md) and [Operator Playbook](RECONCILIATION.md).
+**Stability: Beta (v0.3.0)** — See [Release Notes](docs/RELEASE_NOTES_v0.3.0.md) and [Operator Playbook](RECONCILIATION.md).
 - **Exactly-once ingest**: duplicates are counted once.
 - **Late-event replay**: watermark-based reconciliation.
 - **Pre-invoice reconciliation**: drift goes to **0** before Stripe finalizes invoices.

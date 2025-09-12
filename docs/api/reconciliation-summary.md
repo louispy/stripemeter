@@ -1,4 +1,4 @@
-# API — Reconciliation Summary (v0.2.0)
+# API — Reconciliation Summary (v0.3.0)
 
 [← Back to Welcome](../welcome.md)
 

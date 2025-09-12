@@ -1,4 +1,4 @@
-# Simulator — Getting Started (v0.2.0)
+# Simulator — Getting Started (v0.3.0)
 
 Use the Simulator CLI to validate scenarios, run them with the pricing engine, and report diffs.
 

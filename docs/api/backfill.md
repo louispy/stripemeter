@@ -1,4 +1,4 @@
-# Backfill & Event Replay System
+# Backfill & Event Replay System (deprecated endpoints)
 
 The Backfill & Event Replay System allows you to import historical usage events into StripeMeter for processing and aggregation. This system is designed to handle bulk imports safely while maintaining data integrity and watermark consistency.
 
@@ -13,7 +13,13 @@ The Backfill & Event Replay System allows you to import historical usage events 
 
 ## API Endpoints
 
+<<<<<<< HEAD
 ### POST /v1/events/backfill
+=======
+> Note: In v0.3.0, bulk reprocessing has moved to `POST /v1/replay` with dry-run/apply and watermark/cursor semantics. The `/v1/events/backfill` endpoints below are deprecated and may be removed in a future minor release.
+
+### POST /v1/events/backfill (deprecated)
+>>>>>>> release/v0.3.0
 
 Submit a backfill operation to import historical events.
 
@@ -52,7 +58,11 @@ Submit a backfill operation to import historical events.
 }
 ```
 
+<<<<<<< HEAD
 ### GET /v1/events/backfill/:operationId
+=======
+### GET /v1/events/backfill/:operationId (deprecated)
+>>>>>>> release/v0.3.0
 
 Get the status and details of a specific backfill operation.
 
@@ -81,7 +91,11 @@ Get the status and details of a specific backfill operation.
 }
 ```
 
+<<<<<<< HEAD
 ### GET /v1/events/backfill
+=======
+### GET /v1/events/backfill (deprecated)
+>>>>>>> release/v0.3.0
 
 List backfill operations with optional filtering.
 
