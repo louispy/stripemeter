@@ -15,6 +15,7 @@
 [Open in Codespaces](https://github.com/codespaces/new?hide_repo_select=true&ref=main&repo=geminimir/stripemeter)
 · [5-min Quickstart](#quickstart)
 · [Run the Parity Demo](docs/demos/parity-scenario-test-clocks.md)
+· [Try the Stripe Test Clocks Demo](demo/stripe-test-clocks/README.md)
 
 ---
 
