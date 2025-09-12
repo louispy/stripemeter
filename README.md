@@ -1,5 +1,13 @@
 # StripeMeter — pre-invoice parity for Stripe usage billing
 
+[![CI](https://github.com/geminimir/stripemeter/actions/workflows/ci.yml/badge.svg)](https://github.com/geminimir/stripemeter/actions/workflows/ci.yml)
+[![GitHub release](https://img.shields.io/github/v/release/geminimir/stripemeter)](https://github.com/geminimir/stripemeter/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
+[![Community](https://img.shields.io/badge/Join-Community-blue)](https://github.com/geminimir/stripemeter/discussions)
+[![Contributors](https://img.shields.io/github/contributors/geminimir/stripemeter.svg)](https://github.com/geminimir/stripemeter/graphs/contributors)
+
+**Stability: Beta (v0.2.0)** — See [Release Notes](docs/RELEASE_NOTES_v0.2.0.md) and [Operator Playbook](RECONCILIATION.md).
 - **Exactly-once ingest**: duplicates are counted once.
 - **Late-event replay**: watermark-based reconciliation.
 - **Pre-invoice reconciliation**: drift goes to **0** before Stripe finalizes invoices.
@@ -20,15 +28,6 @@ Run our test-clock parity demo. If we can't get your **pre-invoice** drift to ze
 - Not a **pricing** or **entitlement** layer (use a pricing stack like Autumn; StripeMeter ensures usage **numbers are correct**).
 - Not a data warehouse.
 - Throughput targets: laptop p95 ingest ≤ **25 ms**, late-event replay (10k) ≤ **2 s**. Scale with queue/workers for higher volumes.
-
-[![CI](https://github.com/geminimir/stripemeter/actions/workflows/ci.yml/badge.svg)](https://github.com/geminimir/stripemeter/actions/workflows/ci.yml)
-[![GitHub release](https://img.shields.io/github/v/release/geminimir/stripemeter)](https://github.com/geminimir/stripemeter/releases)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
-[![Community](https://img.shields.io/badge/Join-Community-blue)](https://github.com/geminimir/stripemeter/discussions)
-[![Contributors](https://img.shields.io/github/contributors/geminimir/stripemeter.svg)](https://github.com/geminimir/stripemeter/graphs/contributors)
-
-**Stability: Beta (v0.2.0)** — See [Release Notes](docs/RELEASE_NOTES_v0.2.0.md) and [Operator Playbook](RECONCILIATION.md).
 
 ## What it is
 A small service you run next to your app: it **dedupes** retries, handles **late events** with watermarks, keeps **running counters**, and **pushes only the delta** to Stripe so totals stay correct. A reconciliation loop + metrics catch drift before invoice close.
@@ -482,48 +481,6 @@ helm install stripemeter ./charts/stripemeter
 - Health check endpoints
 - Alerts: see [ops/ALERTS.md](ops/ALERTS.md)
 
-## Security & Compliance
-
-- **Zero PCI scope** - No card data stored
-- **Multi-tenant isolation** - Complete data separation
-- **SOC 2 ready** - Comprehensive audit trails
-- **RBAC support** - Role-based access control
-- **Security scanning** - Automated vulnerability detection
-
-## Roadmap
-
-### Foundations (in progress)
-
-- [ ] Deterministic idempotency across core/SDKs/writer
-- [ ] BullMQ dedup via jobId for aggregation
-- [ ] Fix watermark logic for late events → adjustments
-- [ ] Implement usage endpoints (current + projection)
-- [ ] API authentication + tenant scoping
-- [ ] Price mappings CRUD (DB-backed)
-- [ ] Alerts CRUD + history endpoints
-- [ ] Health checks + Prometheus metrics
-- [ ] Drizzle migrations and bootstrap
-- [ ] Security and resilience hardening
-
-### Next: Billing Simulator
-
-- [ ] Simulator core: Scenario DSL + runner
-- [ ] Stripe billing driver (test clocks, meters v2, credits)
-- [ ] Simulator DB schema & migrations
-- [ ] CSV/S3 parity adapter + MinIO
-- [ ] Assertions library for simulator
-- [ ] sim-api: CRUD scenarios, run orchestration
-- [ ] sim-reporter: HTML/JSON reports
-- [ ] MinIO infra profile for CSV parity tests
-- [ ] Simulator CLI (run/validate/report)
-- [ ] Simulator Prometheus metrics
-- [ ] Credit Grants lifecycle
-- [ ] Mixed cadence invoice scenario
-- [ ] Dunning lab
-- [ ] CI for simulator (fast PR + nightly full)
-- [x] Docs: Simulator getting started + scenarios
-
-[View full roadmap →](https://github.com/stripemeter/stripemeter/projects/1)
 ## License
 
 StripeMeter is [MIT licensed](./LICENSE). Use it, modify it, distribute it - we believe in open source!
