@@ -6,7 +6,8 @@ import { describe, it, expect } from 'vitest';
 import { 
   generateIdempotencyKey, 
   generateStripeIdempotencyKey, 
-  isValidIdempotencyKey 
+  isValidIdempotencyKey,
+  generateDeterministicStripeIdempotencyKey,
 } from './idempotency';
 
 describe('Idempotency Utilities', () => {
@@ -86,6 +87,31 @@ describe('Idempotency Utilities', () => {
       const key = generateStripeIdempotencyKey(params);
       
       expect(key).toMatch(/^push:.*:\d+$/);
+    });
+  });
+
+  describe('generateDeterministicStripeIdempotencyKey (shadow)', () => {
+    it('should generate the same key for the same inputs', () => {
+      const params = {
+        tenantId: '123e4567-e89b-12d3-a456-426614174000',
+        subscriptionItemId: 'si_ABC123',
+        periodStart: '2025-01-01',
+        quantity: 42.123456,
+      };
+      const key1 = generateDeterministicStripeIdempotencyKey(params);
+      const key2 = generateDeterministicStripeIdempotencyKey(params);
+      expect(key1).toBe(key2);
+      expect(key1).toBe('push-shadow:123e4567-e89b-12d3-a456-426614174000:si_ABC123:2025-01-01:42.123456');
+    });
+
+    it('should validate format via validator', () => {
+      const key = generateDeterministicStripeIdempotencyKey({
+        tenantId: '123e4567-e89b-12d3-a456-426614174000',
+        subscriptionItemId: 'si_DEF456',
+        periodStart: '2025-01-15',
+        quantity: 100,
+      });
+      expect(isValidIdempotencyKey(key)).toBe(true);
     });
   });
 

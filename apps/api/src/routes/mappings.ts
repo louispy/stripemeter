@@ -4,6 +4,8 @@
 
 import { FastifyPluginAsync } from 'fastify';
 import type { PriceMapping } from '@stripemeter/core';
+import { db, priceMappings } from '@stripemeter/database';
+import { eq, and } from 'drizzle-orm';
 
 export const mappingsRoutes: FastifyPluginAsync = async (server) => {
   /**
@@ -47,9 +49,14 @@ export const mappingsRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
-  }, async (_request, reply) => {
-    // TODO: Implement mapping retrieval from database
-    reply.send([]);
+  }, async (request, reply) => {
+    const { tenantId, active } = request.query;
+    const whereClauses: any[] = [eq(priceMappings.tenantId, tenantId as any)];
+    if (typeof active === 'boolean') {
+      whereClauses.push(eq(priceMappings.active, active as any));
+    }
+    const rows = await db.select().from(priceMappings).where(and(...whereClauses));
+    reply.send(rows as unknown as PriceMapping[]);
   });
 
   /**
@@ -94,8 +101,9 @@ export const mappingsRoutes: FastifyPluginAsync = async (server) => {
       },
     },
   }, async (request, reply) => {
-    // TODO: Implement mapping creation
-    reply.status(201).send(request.body as PriceMapping);
+    const body = request.body as any;
+    const [row] = await db.insert(priceMappings).values(body).returning();
+    reply.status(201).send(row as unknown as PriceMapping);
   });
 
   /**
@@ -129,12 +137,11 @@ export const mappingsRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
-  }, async (_request, reply) => {
-    // TODO: Implement mapping update
-    reply.status(501).send({ 
-      error: 'Not Implemented',
-      message: 'Mapping update endpoint is under development' 
-    } as any);
+  }, async (request, reply) => {
+    const { id } = request.params;
+    const updates = request.body as any;
+    const [row] = await db.update(priceMappings).set(updates).where(eq(priceMappings.id, id as any)).returning();
+    reply.status(200).send(row as unknown as PriceMapping);
   });
 
   /**
@@ -160,8 +167,9 @@ export const mappingsRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
-  }, async (_request, reply) => {
-    // TODO: Implement mapping deletion
+  }, async (request, reply) => {
+    const { id } = request.params;
+    await db.delete(priceMappings).where(eq(priceMappings.id, id as any));
     reply.status(204).send();
   });
 };

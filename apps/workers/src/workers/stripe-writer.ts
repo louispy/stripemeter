@@ -6,21 +6,30 @@ import Stripe from 'stripe';
 import { db, redis, priceMappings, counters, writeLog } from '@stripemeter/database';
 import { eq, and } from 'drizzle-orm';
 import { logger } from '../utils/logger';
-import { generateStripeIdempotencyKey, getCurrentPeriod } from '@stripemeter/core';
+import { generateStripeIdempotencyKey, generateDeterministicStripeIdempotencyKey, getCurrentPeriod } from '@stripemeter/core';
 import { backOff } from 'exponential-backoff';
 import pLimit from 'p-limit';
+import { shadowUsagePostsTotal, shadowUsagePostFailuresTotal } from '../utils/metrics';
 
 export class StripeWriterWorker {
-  private stripe: Stripe;
+  private stripeLive: Stripe;
+  private stripeTest: Stripe | null = null;
   private intervalId: NodeJS.Timeout | null = null;
   private isRunning = false;
   private rateLimiter: Map<string, any> = new Map();
 
   constructor() {
-    this.stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
+    this.stripeLive = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
       apiVersion: '2023-10-16',
       typescript: true,
     });
+    const testKey = process.env.STRIPE_TEST_SECRET_KEY || '';
+    if (testKey) {
+      this.stripeTest = new Stripe(testKey, {
+        apiVersion: '2023-10-16',
+        typescript: true,
+      });
+    }
   }
 
   async start() {
@@ -93,7 +102,7 @@ export class StripeWriterWorker {
     mapping: typeof priceMappings.$inferSelect,
     periodStart: string
   ) {
-    const { tenantId, metric, stripeAccount, subscriptionItemId } = mapping;
+    const { tenantId, metric, stripeAccount, subscriptionItemId } = mapping as any;
 
     if (!subscriptionItemId) {
       logger.debug(`No subscription item for mapping ${mapping.id}, skipping`);
@@ -136,7 +145,7 @@ export class StripeWriterWorker {
     counter: typeof counters.$inferSelect,
     periodStart: string
   ) {
-    const { tenantId, stripeAccount, subscriptionItemId } = mapping;
+    const { tenantId, stripeAccount, subscriptionItemId, shadow, shadowStripeAccount, shadowSubscriptionItemId } = mapping as any;
     const { customerRef } = counter;
 
     // Get local total based on aggregation type
@@ -155,7 +164,16 @@ export class StripeWriterWorker {
         localTotal = parseFloat(counter.aggSum);
     }
 
-    // Get previously pushed total
+    // Determine live vs shadow routing
+    const isShadow = shadow === true && !!this.stripeTest;
+    if (shadow === true && !this.stripeTest) {
+      logger.warn('Shadow mode mapping detected but STRIPE_TEST_SECRET_KEY is not configured; skipping shadow push');
+    }
+    const targetStripe = isShadow ? this.stripeTest! : this.stripeLive;
+    const effectiveStripeAccount = isShadow ? (shadowStripeAccount || stripeAccount) : stripeAccount;
+    const effectiveSubscriptionItemId = isShadow ? (shadowSubscriptionItemId || subscriptionItemId) : subscriptionItemId;
+
+    // Get previously pushed total (only for live mode; shadow should not affect write_log)
     const [writeLogRow] = await db
       .select()
       .from(writeLog)
@@ -178,22 +196,29 @@ export class StripeWriterWorker {
       return;
     }
 
-    logger.info(`Pushing delta for ${subscriptionItemId}/${customerRef}: delta=${delta}, local=${localTotal}, pushed=${pushedTotal}`);
+    logger.info(`[${isShadow ? 'TEST' : 'LIVE'}] Pushing delta for ${effectiveSubscriptionItemId}/${customerRef}: delta=${delta}, local=${localTotal}, pushed=${pushedTotal}`);
 
     // Generate idempotency key
-    const idempotencyKey = generateStripeIdempotencyKey({
-      tenantId,
-      subscriptionItemId: subscriptionItemId!,
-      periodStart,
-      quantity: localTotal,
-    });
+    const idempotencyKey = isShadow
+      ? generateDeterministicStripeIdempotencyKey({
+          tenantId,
+          subscriptionItemId: effectiveSubscriptionItemId!,
+          periodStart,
+          quantity: localTotal,
+        })
+      : generateStripeIdempotencyKey({
+          tenantId,
+          subscriptionItemId: effectiveSubscriptionItemId!,
+          periodStart,
+          quantity: localTotal,
+        });
 
     try {
       // Push to Stripe with exponential backoff
       await backOff(
         async () => {
-          const usageRecord = await this.stripe.subscriptionItems.createUsageRecord(
-            subscriptionItemId!,
+          const usageRecord = await targetStripe.subscriptionItems.createUsageRecord(
+            effectiveSubscriptionItemId!,
             {
               quantity: Math.round(localTotal), // Stripe requires integer for most prices
               timestamp: Math.floor(Date.now() / 1000),
@@ -201,11 +226,14 @@ export class StripeWriterWorker {
             },
             {
               idempotencyKey,
-              stripeAccount: stripeAccount !== 'default' ? stripeAccount : undefined,
+              stripeAccount: effectiveStripeAccount !== 'default' ? effectiveStripeAccount : undefined,
             }
           );
 
           logger.info(`Successfully pushed usage record ${usageRecord.id} for ${subscriptionItemId}`);
+          if (isShadow) {
+            shadowUsagePostsTotal.inc({ tenant: tenantId, metric: mapping.metric }, 1);
+          }
           return usageRecord;
         },
         {
@@ -224,8 +252,8 @@ export class StripeWriterWorker {
         }
       );
 
-      // Update write log
-      if (writeLogRow) {
+      // Update write log only for live mode
+      if (!isShadow && writeLogRow) {
         await db
           .update(writeLog)
           .set({
@@ -241,7 +269,7 @@ export class StripeWriterWorker {
               eq(writeLog.periodStart, periodStart)
             )
           );
-      } else {
+      } else if (!isShadow) {
         await db
           .insert(writeLog)
           .values({
@@ -256,7 +284,7 @@ export class StripeWriterWorker {
       }
 
       // Update cache
-      const cacheKey = `write_log:${tenantId}:${subscriptionItemId}:${periodStart}`;
+      const cacheKey = `write_log:${tenantId}:${effectiveSubscriptionItemId}:${periodStart}`;
       await redis.setex(
         cacheKey,
         3600, // 1 hour TTL
@@ -268,12 +296,16 @@ export class StripeWriterWorker {
       );
 
     } catch (error: any) {
-      logger.error(`Failed to push usage for ${subscriptionItemId}:`, {
+      logger.error(`Failed to push usage for ${effectiveSubscriptionItemId}:`, {
         error: error.message,
         statusCode: error.statusCode,
         type: error.type,
         code: error.code,
       });
+
+      if (isShadow) {
+        shadowUsagePostFailuresTotal.inc({ tenant: tenantId, metric: mapping.metric, reason: String(error.code || error.type || 'unknown') }, 1);
+      }
 
       // Store error in Redis for monitoring
       const errorKey = `write_error:${tenantId}:${subscriptionItemId}:${periodStart}`;
