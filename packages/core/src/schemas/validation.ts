@@ -97,6 +97,10 @@ export const priceMappingSchema = z.object({
   subscriptionItemId: z.string().startsWith('si_').optional(),
   currency: z.string().length(3).optional(),
   active: z.boolean().default(true),
+  shadow: z.boolean().default(false).optional(),
+  shadowStripeAccount: z.string().startsWith('acct_').optional(),
+  shadowPriceId: z.string().startsWith('price_').optional(),
+  shadowSubscriptionItemId: z.string().startsWith('si_').optional(),
 });
 
 // Alert configuration schema

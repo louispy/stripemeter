@@ -16,6 +16,11 @@ export const priceMappings = pgTable('price_mappings', {
   subscriptionItemId: text('subscription_item_id'),
   currency: text('currency'),
   active: boolean('active').notNull().default(true),
+  // Shadow mode fields
+  shadow: boolean('shadow').notNull().default(false),
+  shadowStripeAccount: text('shadow_stripe_account'),
+  shadowPriceId: text('shadow_price_id'),
+  shadowSubscriptionItemId: text('shadow_subscription_item_id'),
 }, (table) => {
   return {
     // Unique constraint for active mappings

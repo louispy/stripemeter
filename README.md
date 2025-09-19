@@ -102,6 +102,17 @@ curl -s http://localhost:3000/metrics | grep -E "http_request_duration|process_"
 ### Configure metrics (optional)
 Put a tiny config in `examples/config/stripemeter.config.ts` to map `metric → counter` and choose a `watermarkWindowSeconds`.
 
+### Shadow Mode
+
+Shadow Mode lets you post usage to Stripe’s test environment in parallel without affecting live invoices.
+
+- Set `STRIPE_TEST_SECRET_KEY` in your environment (in addition to `STRIPE_SECRET_KEY`).
+- Mark a price mapping with `shadow=true` and provide `shadowStripeAccount`, `shadowPriceId`, and optionally `shadowSubscriptionItemId`.
+- The writer routes these to the Stripe test client and uses deterministic idempotency keys.
+- Live invoices remain unaffected; live write logs are not updated for shadow pushes.
+- Metrics: `shadow_usage_posts_total`, `shadow_usage_post_failures_total`.
+- Guardrails: if `shadow=true` but `STRIPE_TEST_SECRET_KEY` is missing, pushes are skipped with warnings.
+
 ### Pick your case (examples)
 
 - API calls: `bash examples/api-calls/verify.sh`

@@ -65,12 +65,40 @@ export function generateStripeIdempotencyKey(params: {
 }
 
 /**
+ * Generate a deterministic idempotency key for Stripe API requests (shadow mode)
+ * Omits the timestamp to ensure stable keys for the same inputs
+ */
+export function generateDeterministicStripeIdempotencyKey(params: {
+  tenantId: string;
+  subscriptionItemId: string;
+  periodStart: string;
+  quantity: number;
+}): string {
+  const { tenantId, subscriptionItemId, periodStart, quantity } = params;
+
+  const components = [
+    'push-shadow',
+    tenantId,
+    subscriptionItemId,
+    periodStart,
+    quantity.toFixed(6),
+  ];
+
+  return components.join(':');
+}
+
+/**
  * Validate idempotency key format
  */
 export function isValidIdempotencyKey(key: string): boolean {
   // Check if it matches our expected formats
   const eventKeyPattern = /^evt_[a-f0-9]{16}$/;
   const stripeKeyPattern = /^push:[a-f0-9-]+:si_[a-zA-Z0-9]+:\d{4}-\d{2}-\d{2}:\d+\.\d{6}:\d+$/;
-  
-  return eventKeyPattern.test(key) || stripeKeyPattern.test(key);
+  const stripeShadowKeyPattern = /^push-shadow:[a-f0-9-]+:si_[a-zA-Z0-9]+:\d{4}-\d{2}-\d{2}:\d+\.\d{6}$/;
+
+  return (
+    eventKeyPattern.test(key) ||
+    stripeKeyPattern.test(key) ||
+    stripeShadowKeyPattern.test(key)
+  );
 }

@@ -44,6 +44,7 @@ REDIS_URL=redis://localhost:6379
 
 # Stripe (Replace with your keys)
 STRIPE_SECRET_KEY=sk_test_your_stripe_secret_key
+STRIPE_TEST_SECRET_KEY=sk_test_your_test_secret_key
 STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret
 STRIPE_PUBLISHABLE_KEY=pk_test_your_publishable_key
 
