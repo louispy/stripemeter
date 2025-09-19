@@ -198,7 +198,7 @@ export class StripeWriterWorker {
 
     logger.info(`[${isShadow ? 'TEST' : 'LIVE'}] Pushing delta for ${effectiveSubscriptionItemId}/${customerRef}: delta=${delta}, local=${localTotal}, pushed=${pushedTotal}`);
 
-    // Generate idempotency key
+    // Generate deterministic idempotency key for both live and shadow
     const idempotencyKey = isShadow
       ? generateDeterministicStripeIdempotencyKey({
           tenantId,
@@ -217,11 +217,12 @@ export class StripeWriterWorker {
       // Push to Stripe with exponential backoff
       await backOff(
         async () => {
+          const deterministicTimestampSec = Math.floor(new Date(periodStart).getTime() / 1000);
           const usageRecord = await targetStripe.subscriptionItems.createUsageRecord(
             effectiveSubscriptionItemId!,
             {
               quantity: Math.round(localTotal), // Stripe requires integer for most prices
-              timestamp: Math.floor(Date.now() / 1000),
+              timestamp: deterministicTimestampSec,
               action: 'set', // Set total, not increment
             },
             {

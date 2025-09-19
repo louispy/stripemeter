@@ -19,7 +19,6 @@ describe('Idempotency Utilities', () => {
         customerRef: 'cus_ABC123',
         resourceId: 'resource_1',
         ts: '2025-01-16T14:30:00.000Z',
-        nonce: 'test-nonce',
       };
 
       const key1 = generateIdempotencyKey(params);
@@ -62,32 +61,19 @@ describe('Idempotency Utilities', () => {
   });
 
   describe('generateStripeIdempotencyKey', () => {
-    it('should generate a key with the correct format', () => {
+    it('should generate a deterministic push key format (no timestamp)', () => {
       const params = {
         tenantId: '123e4567-e89b-12d3-a456-426614174000',
         subscriptionItemId: 'si_ABC123',
         periodStart: '2025-01-01',
         quantity: 100.5,
-        timestamp: 1705416600000,
       };
 
       const key = generateStripeIdempotencyKey(params);
       
-      expect(key).toBe('push:123e4567-e89b-12d3-a456-426614174000:si_ABC123:2025-01-01:100.500000:1705416600000');
+      expect(key).toBe('push:123e4567-e89b-12d3-a456-426614174000:si_ABC123:2025-01-01:100.500000');
     });
 
-    it('should use current timestamp if not provided', () => {
-      const params = {
-        tenantId: '123e4567-e89b-12d3-a456-426614174000',
-        subscriptionItemId: 'si_ABC123',
-        periodStart: '2025-01-01',
-        quantity: 100,
-      };
-
-      const key = generateStripeIdempotencyKey(params);
-      
-      expect(key).toMatch(/^push:.*:\d+$/);
-    });
   });
 
   describe('generateDeterministicStripeIdempotencyKey (shadow)', () => {
@@ -121,9 +107,11 @@ describe('Idempotency Utilities', () => {
       expect(isValidIdempotencyKey('evt_fedcba0987654321')).toBe(true);
     });
 
-    it('should validate Stripe idempotency keys', () => {
-      const key = 'push:123e4567-e89b-12d3-a456-426614174000:si_ABC123:2025-01-01:100.500000:1705416600000';
-      expect(isValidIdempotencyKey(key)).toBe(true);
+    it('should validate Stripe idempotency keys (deterministic and legacy)', () => {
+      const legacy = 'push:123e4567-e89b-12d3-a456-426614174000:si_ABC123:2025-01-01:100.500000:1705416600000';
+      const deterministic = 'push:123e4567-e89b-12d3-a456-426614174000:si_ABC123:2025-01-01:100.500000';
+      expect(isValidIdempotencyKey(legacy)).toBe(true);
+      expect(isValidIdempotencyKey(deterministic)).toBe(true);
     });
 
     it('should reject invalid keys', () => {
