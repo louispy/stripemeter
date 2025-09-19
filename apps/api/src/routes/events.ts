@@ -232,6 +232,8 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
         opts: {
           delay: 1000, // Small delay to batch events
           jobId: `${job.tenantId}:${job.metric}:${job.customerRef}:${job.periodStart}`,
+          removeOnComplete: 100,
+          removeOnFail: 1000,
         },
       }));
 

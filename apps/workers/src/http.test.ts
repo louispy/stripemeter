@@ -27,6 +27,27 @@ describe('workers http server', () => {
 
     server.close();
   });
+
+  it('triggers reconciler on POST /reconciler/run', async () => {
+    let called = 0;
+    const server = startWorkerHttpServer(0, {
+      onReconcileRun: async () => {
+        called += 1;
+      },
+    });
+    await new Promise((r) => setTimeout(r, 50));
+    const port = getPort(server);
+
+    const res = await fetch(`http://127.0.0.1:${port}/reconciler/run`, {
+      method: 'POST',
+    });
+    expect(res.status).toBe(202);
+    const body = await res.json();
+    expect(body).toMatchObject({ message: 'Reconciliation run triggered' });
+    expect(called).toBe(1);
+
+    server.close();
+  });
 });
 
 

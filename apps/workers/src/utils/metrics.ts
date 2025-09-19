@@ -43,6 +43,34 @@ export const shadowUsagePostFailuresTotal = new Counter({
   labelNames: ['tenant', 'metric', 'reason'] as const,
 });
 
+// Reconciliation metrics
+export const reconRunsTotal = new Counter({
+  name: 'recon_runs_total',
+  help: 'Total number of reconciliation runs',
+  registers: [registry],
+});
+
+export const reconDurationSeconds = new Histogram({
+  name: 'recon_duration_seconds',
+  help: 'Duration of reconciliation runs in seconds',
+  registers: [registry],
+  buckets: [0.5, 1, 2.5, 5, 10, 30, 60, 120, 300],
+});
+
+export const reconciliationDiffAbs = new Gauge({
+  name: 'reconciliation_diff_abs',
+  help: 'Absolute drift between local and Stripe by item and period',
+  registers: [registry],
+  labelNames: ['tenant', 'subscription_item', 'period'] as const,
+});
+
+export const reconciliationDiffPct = new Gauge({
+  name: 'reconciliation_diff_pct',
+  help: 'Percentage drift (|local - stripe| / stripe) by item and period',
+  registers: [registry],
+  labelNames: ['tenant', 'subscription_item', 'period'] as const,
+});
+
 export async function renderMetrics(): Promise<string> {
   return await registry.metrics();
 }

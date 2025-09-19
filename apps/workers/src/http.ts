@@ -5,7 +5,11 @@
 import http from 'http';
 import { renderMetrics } from './utils/metrics';
 
-export function startWorkerHttpServer(port: number = Number(process.env.WORKER_HTTP_PORT || 3100)) {
+export interface WorkerHttpOptions {
+  onReconcileRun?: () => Promise<void> | void;
+}
+
+export function startWorkerHttpServer(port: number = Number(process.env.WORKER_HTTP_PORT || 3100), opts: WorkerHttpOptions = {}) {
   const server = http.createServer(async (req, res) => {
     try {
       if (!req.url) {
@@ -34,6 +38,22 @@ export function startWorkerHttpServer(port: number = Number(process.env.WORKER_H
         res.statusCode = 200;
         res.setHeader('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
         res.end(body);
+        return;
+      }
+
+      if (req.method === 'POST' && req.url === '/reconciler/run') {
+        try {
+          if (opts.onReconcileRun) {
+            await opts.onReconcileRun();
+          }
+          res.statusCode = 202;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ message: 'Reconciliation run triggered' }));
+        } catch (err) {
+          res.statusCode = 500;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ error: 'Failed to trigger reconciliation' }));
+        }
         return;
       }
 

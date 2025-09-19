@@ -4,9 +4,9 @@
 
 import { Worker, Queue, Job } from 'bullmq';
 import { redis, db, events, counters, adjustments } from '@stripemeter/database';
-import { eq, and, gte, lte, sql } from 'drizzle-orm';
+import { eq, and, gte, lte, lt, gt, sql } from 'drizzle-orm';
 import { logger } from '../utils/logger';
-import { getPeriodEnd, isEventTooLate } from '@stripemeter/core';
+import { getPeriodEnd } from '@stripemeter/core';
 
 interface AggregationJob {
   tenantId: string;
@@ -61,7 +61,7 @@ export class AggregatorWorker {
     logger.info('Aggregator worker stopped');
   }
 
-  private async processAggregation(data: AggregationJob) {
+  public async processAggregation(data: AggregationJob) {
     const { tenantId, metric, customerRef, periodStart } = data;
     
     logger.debug(`Processing aggregation for ${tenantId}/${metric}/${customerRef}/${periodStart}`);
@@ -86,7 +86,21 @@ export class AggregatorWorker {
         )
         .limit(1);
 
-      // Calculate aggregations from events
+      // Lateness window (hours) from env with default 48h
+      const latenessWindowHours = parseInt(process.env.LATE_EVENT_WINDOW_HOURS || '48', 10);
+
+      // Establish acceptance lower bound for recomputation
+      // If we have an existing watermark, accept events with ts >= (watermark - L)
+      // Otherwise (first build), accept from period start
+      let recomputeStartDate: Date = periodStartDate;
+      if (existingCounter && existingCounter.watermarkTs) {
+        const watermarkTsDate = new Date(existingCounter.watermarkTs);
+        const lowerBound = new Date(watermarkTsDate.getTime() - latenessWindowHours * 60 * 60 * 1000);
+        // Do not go earlier than the period start
+        recomputeStartDate = lowerBound > periodStartDate ? lowerBound : periodStartDate;
+      }
+
+      // Calculate aggregations from events (respect lateness window for recomputation)
       const [aggregations] = await db
         .select({
           sum: sql<string>`COALESCE(SUM(${events.quantity}), 0)::numeric`,
@@ -97,7 +111,7 @@ export class AggregatorWorker {
             WHERE ${events.tenantId} = ${tenantId}
               AND ${events.metric} = ${metric}
               AND ${events.customerRef} = ${customerRef}
-              AND ${events.ts} >= ${periodStartDate}
+              AND ${events.ts} >= ${recomputeStartDate}
               AND ${events.ts} <= ${periodEndDate}
             ORDER BY ${events.ts} DESC
             LIMIT 1
@@ -110,7 +124,7 @@ export class AggregatorWorker {
             eq(events.tenantId, tenantId),
             eq(events.metric, metric),
             eq(events.customerRef, customerRef),
-            gte(events.ts, periodStartDate),
+            gte(events.ts, recomputeStartDate),
             lte(events.ts, periodEndDate)
           )
         );
@@ -134,7 +148,7 @@ export class AggregatorWorker {
       const finalSum = parseFloat(aggregations.sum || '0') + parseFloat(adjustmentSum.total || '0');
       const finalMax = parseFloat(aggregations.max || '0');
       const finalLast = aggregations.last ? parseFloat(aggregations.last) : null;
-      const watermark = aggregations.maxTs || new Date();
+      const watermark = aggregations.maxTs || (existingCounter?.watermarkTs ? new Date(existingCounter.watermarkTs) : new Date());
 
       // Upsert counter
       if (existingCounter) {
@@ -194,8 +208,11 @@ export class AggregatorWorker {
         JSON.stringify(cacheValue)
       );
 
-      // Check for late events that need to become adjustments
+      // Check for very-late events (older than acceptance window) to convert into adjustments
       if (existingCounter && existingCounter.watermarkTs) {
+        const watermarkTsDate = new Date(existingCounter.watermarkTs);
+        const veryLateCutoff = new Date(watermarkTsDate.getTime() - latenessWindowHours * 60 * 60 * 1000);
+
         const lateEvents = await db
           .select()
           .from(events)
@@ -206,28 +223,27 @@ export class AggregatorWorker {
               eq(events.customerRef, customerRef),
               gte(events.ts, periodStartDate),
               lte(events.ts, periodEndDate),
-              lte(events.ts, existingCounter.watermarkTs)
+              lt(events.ts, veryLateCutoff),
+              // Only consider events newly inserted since last aggregation to avoid duplicates
+              gt(events.insertedAt, existingCounter.updatedAt as any)
             )
           );
 
         for (const event of lateEvents) {
-          if (isEventTooLate(event.ts, existingCounter.watermarkTs)) {
-            // Create adjustment for late event
-            await db
-              .insert(adjustments)
-              .values({
-                tenantId,
-                metric,
-                customerRef,
-                periodStart,
-                delta: event.quantity,
-                reason: 'backfill' as const,
-                actor: 'system:late-event',
-                createdAt: new Date(),
-              });
-            
-            logger.warn(`Created adjustment for late event ${event.idempotencyKey}`);
-          }
+          await db
+            .insert(adjustments)
+            .values({
+              tenantId,
+              metric,
+              customerRef,
+              periodStart,
+              delta: event.quantity,
+              reason: 'backfill' as const,
+              actor: 'system:late-event',
+              createdAt: new Date(),
+            });
+
+          logger.warn(`Created adjustment for very-late event ${event.idempotencyKey}`);
         }
       }
 
