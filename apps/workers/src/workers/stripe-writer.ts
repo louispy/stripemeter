@@ -102,7 +102,7 @@ export class StripeWriterWorker {
     mapping: typeof priceMappings.$inferSelect,
     periodStart: string
   ) {
-    const { tenantId, metric, stripeAccount, subscriptionItemId, shadow, shadowStripeAccount, shadowSubscriptionItemId } = mapping as any;
+    const { tenantId, metric, stripeAccount, subscriptionItemId } = mapping as any;
 
     if (!subscriptionItemId) {
       logger.debug(`No subscription item for mapping ${mapping.id}, skipping`);
@@ -145,7 +145,7 @@ export class StripeWriterWorker {
     counter: typeof counters.$inferSelect,
     periodStart: string
   ) {
-    const { tenantId, stripeAccount, subscriptionItemId } = mapping;
+    const { tenantId, stripeAccount, subscriptionItemId, shadow, shadowStripeAccount, shadowSubscriptionItemId } = mapping as any;
     const { customerRef } = counter;
 
     // Get local total based on aggregation type
