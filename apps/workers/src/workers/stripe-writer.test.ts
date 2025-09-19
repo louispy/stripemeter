@@ -12,12 +12,8 @@ describe('StripeWriterWorker idempotency', () => {
     // Arrange: spy on core key generation
     const genSpy = vi.spyOn(core, 'generateStripeIdempotencyKey');
 
-    // Mock Stripe client
-    const createUsageRecord = vi.fn(async (_itemId, body, _opts) => {
-      // Return a shape similar to Stripe response
-      return { id: 'ur_123', ...body } as any;
-    });
-    vi.spyOn(Stripe.prototype.subscriptionItems, 'createUsageRecord' as any).mockImplementation(createUsageRecord as any);
+    // Note: We do not mock Stripe internals here; this test asserts deterministic
+    // key generation and stable timestamp derivation logic only.
 
     // Build worker and call private method via any-cast
     const worker = new StripeWriterWorker() as any;
