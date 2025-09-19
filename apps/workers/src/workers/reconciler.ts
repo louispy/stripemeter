@@ -258,7 +258,7 @@ export class ReconcilerWorker {
         let totalUsage = 0;
         // Paginate conservatively up to 5 pages
         for (let i = 0; i < 5; i++) {
-          const resp = await this.stripe.subscriptionItems.listUsageRecordSummaries(
+          const resp: Stripe.ApiList<Stripe.UsageRecordSummary> = await this.stripe.subscriptionItems.listUsageRecordSummaries(
             subscriptionItemId,
             {
               limit: 100,

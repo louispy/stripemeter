@@ -3,8 +3,8 @@
  */
 
 import { FastifyPluginAsync } from 'fastify';
-import type { ReconciliationResponse, ReconciliationSummaryResponse } from '@stripemeter/core';
-import { db, priceMappings, reconciliationReports, adjustments } from '@stripemeter/database';
+import type { ReconciliationSummaryResponse } from '@stripemeter/core';
+import { db, priceMappings, reconciliationReports } from '@stripemeter/database';
 import { and, eq, gte, lte, sql } from 'drizzle-orm';
 import http from 'http';
 
@@ -16,7 +16,7 @@ export const reconciliationRoutes: FastifyPluginAsync = async (server) => {
   server.get<{
     Params: { period: string };
     Querystring: { tenantId: string; format?: 'json' | 'csv' };
-    Reply: ReconciliationResponse;
+    Reply: any;
   }>('/:period', {
     schema: {
       description: 'Get reconciliation report for a period',
@@ -140,7 +140,7 @@ export const reconciliationRoutes: FastifyPluginAsync = async (server) => {
         }
         const csv = lines.join('\n');
         reply.header('Content-Type', 'text/csv');
-        reply.header('Content-Disposition', `attachment; filename="reconciliation_${tenantId}_${period}.csv"`);
+        (reply as any).header('Content-Disposition', `attachment; filename="reconciliation_${tenantId}_${period}.csv"`);
         return reply.send(csv);
       }
 
@@ -151,6 +151,14 @@ export const reconciliationRoutes: FastifyPluginAsync = async (server) => {
         summary,
       } as any);
     } catch (_err) {
+      const { format } = request.query as any;
+      if (format === 'csv') {
+        const header = ['subscription_item_id', 'period', 'local', 'stripe', 'drift_abs', 'drift_pct', 'status'];
+        const csv = header.join(',') + '\n';
+        reply.header('Content-Type', 'text/csv');
+        (reply as any).header('Content-Disposition', `attachment; filename="reconciliation_${(request.query as any).tenantId}_${period}.csv"`);
+        return reply.send(csv);
+      }
       reply.status(500).send({
         period,
         reports: [],
@@ -215,7 +223,7 @@ export const reconciliationRoutes: FastifyPluginAsync = async (server) => {
    */
   server.get<{
     Querystring: { tenantId: string; periodStart: string; periodEnd: string; format?: 'json' | 'csv' };
-    Reply: ReconciliationSummaryResponse;
+    Reply: any;
   }>('/summary', {
     schema: {
       description: 'Get per-metric reconciliation summary for a period range',
@@ -355,12 +363,21 @@ export const reconciliationRoutes: FastifyPluginAsync = async (server) => {
         lines.push(['TOTAL', body.overall.local, body.overall.stripe, body.overall.drift_abs, body.overall.drift_pct, body.overall.items].join(','));
         const csv = lines.join('\n');
         reply.header('Content-Type', 'text/csv');
-        reply.header('Content-Disposition', `attachment; filename=\"reconciliation_summary_${tenantId}_${periodStart}_${periodEnd}.csv\"`);
+        (reply as any).header('Content-Disposition', `attachment; filename="reconciliation_summary_${tenantId}_${periodStart}_${periodEnd}.csv"`);
         return reply.send(csv);
       }
 
       reply.send(body);
     } catch (err) {
+      const { format } = request.query as any;
+      if (format === 'csv') {
+        const header = ['metric', 'local', 'stripe', 'drift_abs', 'drift_pct', 'items'];
+        const total = ['TOTAL', 0, 0, 0, 0, 0];
+        const csv = header.join(',') + '\n' + total.join(',') + '\n';
+        reply.header('Content-Type', 'text/csv');
+        (reply as any).header('Content-Disposition', `attachment; filename="reconciliation_summary_${tenantId}_${periodStart}_${periodEnd}.csv"`);
+        return reply.send(csv);
+      }
       // Fail closed with empty summary
       reply.send({
         periodStart,
