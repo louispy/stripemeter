@@ -71,8 +71,6 @@ curl -s "http://localhost:3000/v1/reconciliation/summary?tenantId=demo&metric=re
 ```
 
 Notes
-- Drift is calculated as `localTotal - stripeTotal`
-- Positive drift means local counters are ahead of Stripe
-- Negative drift means Stripe has more usage than local counters
-- The `beforeReplay` and `afterReplay` counters show the impact of late-event replay
-- Use this endpoint to verify parity before invoice finalization
+- Drift absolute is `|local - stripe|`; drift percentage is `drift_abs / stripe` with 1.0 when `stripe == 0 && drift_abs > 0`.
+- CSV export: add `format=csv` query param. A totals row is appended as `TOTAL`.
+- All timestamps use UTC.

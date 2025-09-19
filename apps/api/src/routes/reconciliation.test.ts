@@ -56,6 +56,57 @@ describe('Reconciliation summary API', () => {
       expect(body).toHaveProperty('periodStart');
     }
   });
+
+  it('GET /v1/reconciliation/summary?format=csv returns CSV', async () => {
+    const res = await server.inject({
+      method: 'GET',
+      url: '/v1/reconciliation/summary',
+      query: {
+        tenantId: '00000000-0000-0000-0000-000000000000',
+        periodStart: '2025-01',
+        periodEnd: '2025-03',
+        format: 'csv',
+      } as any,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.headers['content-type']).toContain('text/csv');
+    const body = res.body;
+    expect(body).toContain('metric,local,stripe,drift_abs,drift_pct,items');
+  });
+
+  it('POST /v1/reconciliation/run triggers worker HTTP', async () => {
+    // Spin up a dummy worker HTTP server on a random port to capture call
+    const http = await import('http');
+    const srv = http.createServer((req, res) => {
+      if (req.method === 'POST' && req.url === '/reconciler/run') {
+        res.statusCode = 202;
+        res.end('ok');
+      } else {
+        res.statusCode = 404;
+        res.end('no');
+      }
+    });
+    await new Promise<void>((r) => srv.listen(0, r));
+    const addr = srv.address();
+    const port = typeof addr === 'object' && addr ? addr.port : 0;
+
+    process.env.WORKER_HTTP_HOST = '127.0.0.1';
+    process.env.WORKER_HTTP_PORT = String(port);
+
+    const res = await server.inject({ method: 'POST', url: '/v1/reconciliation/run', payload: { tenantId: 't' } });
+    expect([200, 202]).toContain(res.statusCode);
+    srv.close();
+  });
+
+  it('GET /v1/reconciliation/:period returns CSV when requested', async () => {
+    const res = await server.inject({
+      method: 'GET',
+      url: '/v1/reconciliation/2025-01',
+      query: { tenantId: '00000000-0000-0000-0000-000000000000', format: 'csv' } as any,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.headers['content-type']).toContain('text/csv');
+  });
 });
 
 

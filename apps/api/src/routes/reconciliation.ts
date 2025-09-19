@@ -4,8 +4,9 @@
 
 import { FastifyPluginAsync } from 'fastify';
 import type { ReconciliationResponse, ReconciliationSummaryResponse } from '@stripemeter/core';
-import { db, priceMappings, reconciliationReports } from '@stripemeter/database';
+import { db, priceMappings, reconciliationReports, adjustments } from '@stripemeter/database';
 import { and, eq, gte, lte, sql } from 'drizzle-orm';
+import http from 'http';
 
 export const reconciliationRoutes: FastifyPluginAsync = async (server) => {
   /**
@@ -14,7 +15,7 @@ export const reconciliationRoutes: FastifyPluginAsync = async (server) => {
    */
   server.get<{
     Params: { period: string };
-    Querystring: { tenantId: string };
+    Querystring: { tenantId: string; format?: 'json' | 'csv' };
     Reply: ReconciliationResponse;
   }>('/:period', {
     schema: {
@@ -32,6 +33,7 @@ export const reconciliationRoutes: FastifyPluginAsync = async (server) => {
         required: ['tenantId'],
         properties: {
           tenantId: { type: 'string' },
+          format: { type: 'string', enum: ['json', 'csv'] },
         },
       },
       response: {
@@ -88,22 +90,74 @@ export const reconciliationRoutes: FastifyPluginAsync = async (server) => {
       },
     },
   }, async (request, reply) => {
-    // TODO: Implement reconciliation report generation
     const { period } = request.params;
-    const { tenantId: _tenantId } = request.query;
-    
-    reply.send({
-      period,
-      reports: [],
-      suggestedAdjustments: [],
-      summary: {
-        total: 0,
-        ok: 0,
-        investigating: 0,
-        resolved: 0,
-        maxDiff: 0,
-      },
-    });
+    const { tenantId, format } = request.query as any;
+
+    try {
+      const rows = await db
+        .select()
+        .from(reconciliationReports)
+        .where(and(eq(reconciliationReports.tenantId, tenantId), eq(reconciliationReports.periodStart, `${period}-01`)));
+
+      // Compute summary
+      const summary = rows.reduce((acc: any, r: any) => {
+        acc.total += 1;
+        if (r.status === 'ok') acc.ok += 1;
+        if (r.status === 'investigate') acc.investigating += 1;
+        if (r.status === 'resolved') acc.resolved += 1;
+        const diffNum = Number(r.diff);
+        if (diffNum > acc.maxDiff) acc.maxDiff = diffNum;
+        return acc;
+      }, { total: 0, ok: 0, investigating: 0, resolved: 0, maxDiff: 0 });
+
+      const reports = rows.map((r: any) => ({
+        id: r.id,
+        tenantId: r.tenantId,
+        subscriptionItemId: r.subscriptionItemId,
+        periodStart: r.periodStart,
+        localTotal: Number(r.localTotal),
+        stripeTotal: Number(r.stripeTotal),
+        diff: Number(r.diff),
+        status: r.status,
+        createdAt: (r.createdAt as Date).toISOString(),
+      }));
+
+      if (format === 'csv') {
+        const header = ['subscription_item_id', 'period', 'local', 'stripe', 'drift_abs', 'drift_pct', 'status'];
+        const lines = [header.join(',')];
+        for (const r of reports) {
+          const drift_abs = Math.abs(r.localTotal - r.stripeTotal);
+          const drift_pct = r.stripeTotal > 0 ? drift_abs / r.stripeTotal : drift_abs > 0 ? 1 : 0;
+          lines.push([
+            r.subscriptionItemId,
+            period,
+            r.localTotal,
+            r.stripeTotal,
+            drift_abs,
+            drift_pct,
+            r.status,
+          ].join(','));
+        }
+        const csv = lines.join('\n');
+        reply.header('Content-Type', 'text/csv');
+        reply.header('Content-Disposition', `attachment; filename="reconciliation_${tenantId}_${period}.csv"`);
+        return reply.send(csv);
+      }
+
+      reply.send({
+        period,
+        reports,
+        suggestedAdjustments: [],
+        summary,
+      } as any);
+    } catch (_err) {
+      reply.status(500).send({
+        period,
+        reports: [],
+        suggestedAdjustments: [],
+        summary: { total: 0, ok: 0, investigating: 0, resolved: 0, maxDiff: 0 },
+      } as any);
+    }
   });
 
   /**
@@ -134,11 +188,25 @@ export const reconciliationRoutes: FastifyPluginAsync = async (server) => {
       },
     },
   }, async (_request, reply) => {
-    // TODO: Queue reconciliation job
-    reply.status(202).send({
-      message: 'Reconciliation job queued',
-      jobId: `job_${Date.now()}`,
-    });
+    try {
+      const port = Number(process.env.WORKER_HTTP_PORT || 3100);
+      const host = process.env.WORKER_HTTP_HOST || '127.0.0.1';
+      const jobId = `job_${Date.now()}`;
+      await new Promise<void>((resolve, reject) => {
+        const req = http.request(
+          { method: 'POST', host, port, path: '/reconciler/run' },
+          (res) => {
+            if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) resolve();
+            else reject(new Error(`Worker returned status ${res.statusCode}`));
+          }
+        );
+        req.on('error', reject);
+        req.end();
+      });
+      reply.status(202).send({ message: 'Reconciliation job queued', jobId });
+    } catch (err) {
+      reply.status(500).send({ message: 'Failed to queue reconciliation job' });
+    }
   });
 
   /**
@@ -146,7 +214,7 @@ export const reconciliationRoutes: FastifyPluginAsync = async (server) => {
    * Get per-metric reconciliation summary for a period range
    */
   server.get<{
-    Querystring: { tenantId: string; periodStart: string; periodEnd: string };
+    Querystring: { tenantId: string; periodStart: string; periodEnd: string; format?: 'json' | 'csv' };
     Reply: ReconciliationSummaryResponse;
   }>('/summary', {
     schema: {
@@ -159,6 +227,7 @@ export const reconciliationRoutes: FastifyPluginAsync = async (server) => {
           tenantId: { type: 'string' },
           periodStart: { type: 'string', pattern: '^\\d{4}-\\d{2}$' },
           periodEnd: { type: 'string', pattern: '^\\d{4}-\\d{2}$' },
+          format: { type: 'string', enum: ['json', 'csv'] },
         },
       },
       response: {
@@ -206,7 +275,7 @@ export const reconciliationRoutes: FastifyPluginAsync = async (server) => {
       },
     },
   }, async (request, reply) => {
-    const { tenantId, periodStart, periodEnd } = request.query;
+    const { tenantId, periodStart, periodEnd, format } = request.query as any;
 
     // Basic validation: ensure periodStart <= periodEnd
     if (periodEnd < periodStart) {
@@ -276,6 +345,19 @@ export const reconciliationRoutes: FastifyPluginAsync = async (server) => {
           items: overallItems,
         },
       };
+
+      if (format === 'csv') {
+        const header = ['metric', 'local', 'stripe', 'drift_abs', 'drift_pct', 'items'];
+        const lines = [header.join(',')];
+        for (const m of body.perMetric) {
+          lines.push([m.metric, m.local, m.stripe, m.drift_abs, m.drift_pct, m.items].join(','));
+        }
+        lines.push(['TOTAL', body.overall.local, body.overall.stripe, body.overall.drift_abs, body.overall.drift_pct, body.overall.items].join(','));
+        const csv = lines.join('\n');
+        reply.header('Content-Type', 'text/csv');
+        reply.header('Content-Disposition', `attachment; filename=\"reconciliation_summary_${tenantId}_${periodStart}_${periodEnd}.csv\"`);
+        return reply.send(csv);
+      }
 
       reply.send(body);
     } catch (err) {

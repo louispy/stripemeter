@@ -17,8 +17,6 @@ async function start() {
   logger.info('🚀 Starting Stripemeter workers...');
 
   try {
-    // Start lightweight HTTP server for health/metrics
-    startWorkerHttpServer();
     // Initialize workers
     const aggregator = new AggregatorWorker();
     const stripeWriter = new StripeWriterWorker();
@@ -26,6 +24,13 @@ async function start() {
     const alertMonitor = new AlertMonitorWorker();
     const simulationRunner = new SimulationRunnerWorker();
     const backfill = new BackfillWorker();
+
+    // Start lightweight HTTP server for health/metrics and manual triggers
+    startWorkerHttpServer(Number(process.env.WORKER_HTTP_PORT || 3100), {
+      onReconcileRun: async () => {
+        await reconciler.triggerOnDemand();
+      },
+    });
 
     // Start all workers
     await Promise.all([

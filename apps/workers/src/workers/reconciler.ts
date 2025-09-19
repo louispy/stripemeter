@@ -6,6 +6,7 @@ import Stripe from 'stripe';
 import { db, redis, priceMappings, reconciliationReports, counters, adjustments } from '@stripemeter/database';
 import { eq, and, sql } from 'drizzle-orm';
 import { logger } from '../utils/logger';
+import { reconRunsTotal, reconDurationSeconds, reconciliationDiffAbs, reconciliationDiffPct, workerRunningGauge } from '../utils/metrics';
 import { getCurrentPeriod, RECONCILIATION_EPSILON } from '@stripemeter/core';
 
 export class ReconcilerWorker {
@@ -36,6 +37,14 @@ export class ReconcilerWorker {
     logger.info(`Reconciler started (interval: ${intervalMs}ms)`);
   }
 
+  async triggerOnDemand() {
+    if (this.isRunning) {
+      logger.info('Reconciliation already running; on-demand trigger ignored');
+      return;
+    }
+    this.runReconciliation();
+  }
+
   async stop() {
     if (this.intervalId) {
       clearInterval(this.intervalId);
@@ -58,9 +67,11 @@ export class ReconcilerWorker {
 
     this.isRunning = true;
     const startTime = Date.now();
+    workerRunningGauge.labels('reconciler').inc();
     
     try {
       logger.info('Starting reconciliation run');
+      reconRunsTotal.inc();
       
       // Get current period
       const { start: periodStart } = getCurrentPeriod();
@@ -93,6 +104,7 @@ export class ReconcilerWorker {
 
       const duration = Date.now() - startTime;
       logger.info(`Reconciliation completed in ${duration}ms: ${totalReports} reports, ${investigatingCount} investigating`);
+      reconDurationSeconds.observe(duration / 1000);
 
       // Store metrics in Redis
       await redis.setex(
@@ -111,6 +123,7 @@ export class ReconcilerWorker {
       logger.error('Reconciliation run failed:', error);
     } finally {
       this.isRunning = false;
+      workerRunningGauge.labels('reconciler').dec();
     }
   }
 
@@ -196,7 +209,7 @@ export class ReconcilerWorker {
         );
       }
 
-      // Update metrics in Redis
+      // Update metrics in Redis and Prometheus
       const metricsKey = `reconciliation:metrics:${tenantId}:${subscriptionItemId}:${periodStart}`;
       await redis.setex(
         metricsKey,
@@ -211,6 +224,10 @@ export class ReconcilerWorker {
         })
       );
 
+      // Prometheus gauges (label by tenant, subscription_item, period)
+      reconciliationDiffAbs.labels(tenantId, subscriptionItemId, periodStart).set(diff);
+      reconciliationDiffPct.labels(tenantId, subscriptionItemId, periodStart).set(diffPercentage);
+
     } catch (error) {
       logger.error(`Failed to reconcile ${subscriptionItemId}:`, error);
     }
@@ -223,47 +240,63 @@ export class ReconcilerWorker {
     periodStart: string,
     stripeAccount: string
   ): Promise<Stripe.UsageRecordSummary> {
-    try {
-      // Get subscription item to find the current period
-      await this.stripe.subscriptionItems.retrieve(
-        subscriptionItemId,
-        {
-          stripeAccount: stripeAccount !== 'default' ? stripeAccount : undefined,
-        }
-      );
+    const headers = {
+      stripeAccount: stripeAccount !== 'default' ? stripeAccount : undefined,
+    } as const;
 
-      // List usage record summaries for the period
-      const summaries = await this.stripe.subscriptionItems.listUsageRecordSummaries(
-        subscriptionItemId,
-        {
-          limit: 1,
-        },
-        {
-          stripeAccount: stripeAccount !== 'default' ? stripeAccount : undefined,
-        }
-      );
+    // Simple retry with exponential backoff for 429/5xx
+    const maxRetries = 3;
+    let attempt = 0;
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      try {
+        // Ensure item exists / accessible
+        await this.stripe.subscriptionItems.retrieve(subscriptionItemId, headers);
 
-      if (summaries.data.length > 0) {
-        return summaries.data[0];
+        // List usage summaries; if Stripe returns multiple windows, sum total_usage
+        let startingAfter: string | undefined = undefined;
+        let totalUsage = 0;
+        // Paginate conservatively up to 5 pages
+        for (let i = 0; i < 5; i++) {
+          const resp = await this.stripe.subscriptionItems.listUsageRecordSummaries(
+            subscriptionItemId,
+            {
+              limit: 100,
+              starting_after: startingAfter,
+            },
+            headers
+          );
+          for (const s of resp.data) {
+            totalUsage += s.total_usage ?? 0;
+          }
+          if (!resp.has_more) break;
+          startingAfter = resp.data[resp.data.length - 1]?.id;
+        }
+
+        return {
+          id: '',
+          object: 'usage_record_summary',
+          invoice: null,
+          livemode: false,
+          period: {
+            start: Math.floor(new Date(periodStart).getTime() / 1000),
+            end: Math.floor(Date.now() / 1000),
+          },
+          subscription_item: subscriptionItemId,
+          total_usage: totalUsage,
+        } as Stripe.UsageRecordSummary;
+      } catch (error: any) {
+        const status = error?.statusCode || error?.status || 0;
+        const retryable = status === 429 || (status >= 500 && status < 600);
+        if (retryable && attempt < maxRetries) {
+          const delayMs = Math.pow(2, attempt) * 250;
+          await new Promise((r) => setTimeout(r, delayMs));
+          attempt += 1;
+          continue;
+        }
+        logger.error(`Failed to fetch Stripe usage for ${subscriptionItemId}:`, error);
+        throw error;
       }
-
-      // Return empty summary if none found
-      return {
-        id: '',
-        object: 'usage_record_summary',
-        invoice: null,
-        livemode: false,
-        period: {
-          start: Math.floor(new Date(periodStart).getTime() / 1000),
-          end: Math.floor(Date.now() / 1000),
-        },
-        subscription_item: subscriptionItemId,
-        total_usage: 0,
-      };
-
-    } catch (error: any) {
-      logger.error(`Failed to fetch Stripe usage for ${subscriptionItemId}:`, error);
-      throw error;
     }
   }
 

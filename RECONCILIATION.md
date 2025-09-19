@@ -56,11 +56,15 @@ Expected: `/health/ready` returns `healthy` or `degraded`; `/metrics` includes `
 Prometheus queries (paste into Prometheus/Grafana):
 
 ```
-# Percentage drift (placeholder; wire to reconciler gauge when available)
+# Percentage drift by item and period
 max_over_time(reconciliation_diff_pct[15m])
 
-# Absolute drift (placeholder; wire to reconciler gauge when available)
+# Absolute drift by item and period
 max_over_time(reconciliation_diff_abs[15m])
+
+# Reconciliation run cadence and latency
+increase(recon_runs_total[1h])
+histogram_quantile(0.95, sum(rate(recon_duration_seconds_bucket[5m])) by (le))
 
 # Ingest p95 latency for /v1/events/ingest
 histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{route="/v1/events/ingest"}[5m])))
