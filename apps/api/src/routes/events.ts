@@ -16,6 +16,7 @@ import {
 } from '@stripemeter/core';
 import { Queue } from 'bullmq';
 import { warnIfNonUuidTenantId } from '../utils/logger';
+import { eventsIngestedTotal, ingestLatencyMs } from '../utils/metrics';
 
 export const eventsRoutes: FastifyPluginAsync = async (server) => {
   // Lazily import database to play well with test mocks
@@ -119,6 +120,7 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
       },
     },
   }, async (request, reply) => {
+    const ingestStart = process.hrtime.bigint();
     // Validate request body
     const validationResult = ingestEventRequestSchema.safeParse(request.body);
     if (!validationResult.success) {
@@ -192,6 +194,15 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
     // Insert events into database
     const { inserted, duplicates } = await eventsRepo.upsertBatch(eventsToInsert);
 
+    // Observe ingest latency (accept → persisted)
+    try {
+      const diffNs = Number(process.hrtime.bigint() - ingestStart);
+      const diffMs = diffNs / 1e6;
+      ingestLatencyMs.observe(diffMs);
+    } catch (_e) {
+      // never fail request on metrics
+    }
+
     // Map accepted/duplicate results by idempotencyKey
     const insertedKeys = new Set(inserted.map((e: any) => e.idempotencyKey));
     const duplicateKeys = new Set(duplicates);
@@ -199,6 +210,19 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
       const key = e.idempotencyKey as string;
       if (insertedKeys.has(key)) results.push({ idempotencyKey: key, status: 'accepted' });
       else if (duplicateKeys.has(key)) results.push({ idempotencyKey: key, status: 'duplicate' });
+    }
+
+    // Increment events_ingested_total by meter for accepted
+    try {
+      const countsByMetric = new Map<string, number>();
+      for (const e of inserted) {
+        countsByMetric.set(e.metric, (countsByMetric.get(e.metric) || 0) + 1);
+      }
+      for (const [metric, count] of countsByMetric.entries()) {
+        eventsIngestedTotal.labels(metric).inc(count);
+      }
+    } catch (_e) {
+      // ignore metrics errors
     }
 
     // Queue aggregation jobs for inserted events

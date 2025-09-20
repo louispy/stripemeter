@@ -7,32 +7,48 @@ import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 process.env.BYPASS_AUTH = '1';
 // Mock database layer to avoid external connections
 vi.mock('@stripemeter/database', () => {
-  const store: any[] = [];
+  const map = new Map<string, any>();
+  const list: any[] = [];
   return {
     EventsRepository: class {
       async upsertBatch(batch: any[]) {
         const inserted: any[] = [];
         const duplicates: string[] = [];
         for (const e of batch) {
-          const exists = store.find(x => x.idempotencyKey === e.idempotencyKey);
-          if (exists) {
-            duplicates.push(e.idempotencyKey);
+          const key = e.idempotencyKey ?? `${e.tenantId}:${e.metric}:${e.customerRef}:${(e.ts instanceof Date ? e.ts.toISOString() : e.ts)}`;
+          // Ensure idempotencyKey exists on stored event for later reads
+          if (!e.idempotencyKey) e.idempotencyKey = key;
+          if (map.has(key)) {
+            duplicates.push(key);
           } else {
-            store.push(e);
+            map.set(key, e);
+            list.push(e);
             inserted.push(e);
           }
         }
         return { inserted, duplicates };
       }
       async getEventsByParam(param: any) {
+        const filtered = list.filter(ev => (
+          (!param?.tenantId || ev.tenantId === param.tenantId) &&
+          (!param?.metric || ev.metric === param.metric) &&
+          (!param?.customerRef || ev.customerRef === param.customerRef)
+        ));
         const start = Number(param?.offset ?? 0);
-        const end = start + Number(param?.limit ?? store.length);
-        return store.slice(start, end);
+        const end = start + Number(param?.limit ?? filtered.length);
+        return filtered.slice(start, end);
       }
-      async getEventsCountByParam() { return store.length; }
+      async getEventsCountByParam(param?: any) {
+        return (await this.getEventsByParam(param)).length;
+      }
     },
+    // Minimal symbols to satisfy server test cleanup import
+    db: { delete: async (_: any) => ({}) } as any,
+    events: {} as any,
+    simulationRuns: {} as any,
+    simulationScenarios: {} as any,
+    simulationBatches: {} as any,
     redis: undefined,
-    db: undefined,
   };
 });
 import { FastifyInstance } from 'fastify';
@@ -357,6 +373,14 @@ describe('Events API', () => {
     expect(body).toHaveProperty('total');
     expect(body).toHaveProperty('events');
     expect(body.events.length).toBeLessThanOrEqual(1);
+  });
+  
+  it('GET /metrics should include new ingestion metrics', async () => {
+    const res = await server.inject({ method: 'GET', url: '/metrics' });
+    expect(res.statusCode).toBe(200);
+    const text = res.body.toString();
+    expect(text).toContain('events_ingested_total');
+    expect(text).toContain('ingest_latency_ms_bucket');
   });
 });
 });
