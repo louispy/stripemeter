@@ -7,10 +7,9 @@
 [![Community](https://img.shields.io/badge/Join-Community-blue)](https://github.com/geminimir/stripemeter/discussions)
 [![Contributors](https://img.shields.io/github/contributors/geminimir/stripemeter.svg)](https://github.com/geminimir/stripemeter/graphs/contributors)
 
-**Stability: Beta (v0.3.0)** — See [Release Notes](docs/RELEASE_NOTES_v0.3.0.md) and [Operator Playbook](RECONCILIATION.md).
-- **Exactly-once ingest**: duplicates are counted once.
-- **Late-event replay**: watermark-based reconciliation.
-- **Pre-invoice reconciliation**: drift goes to **0** before Stripe finalizes invoices.
+**v0.4.0: Production-readiness pack** 
+
+See [v0.4.0 Release Notes](docs/RELEASE_NOTES_v0.4.0.md) and [Operator Runbook](RECONCILIATION.md).
 
 [Open in Codespaces](https://github.com/codespaces/new?hide_repo_select=true&ref=main&repo=geminimir/stripemeter)
 · [5-min Quickstart](#quickstart)
@@ -19,11 +18,24 @@
 
 ---
 
-### Parity Challenge
-Run our test-clock parity demo. If we can't get your **pre-invoice** drift to zero, we'll buy your team coffee.  
-*Rules:* test data only; 1-hour cap; anonymized notes OK.
+### What’s new in v0.4.0
+- End-of-cycle **parity demo** (Stripe Test Clocks)
+- **Replay API** — `POST /v1/replay` with dry-run/apply; watermark/cursor semantics
+- **Shadow Mode** — test-environment pushes with deterministic idempotency keys
+- **/metrics** + Prometheus + **Grafana** dashboard
+- **ALERTS.md** + **RECONCILIATION.md** runbook
 
 ---
+
+### Try in 5 minutes → Verify in 30 seconds
+
+```bash
+git clone https://github.com/geminimir/stripemeter && cd stripemeter
+cp .env.example .env && docker compose up -d && pnpm -r build && pnpm dev
+curl -fsS http://localhost:3000/health/ready | jq . || true
+TENANT_ID=$(uuidgen 2>/dev/null || cat /proc/sys/kernel/random/uuid) bash examples/api-calls/send.sh
+curl -fsS http://localhost:3000/metrics | head -n 30  # duplicate counted once
+```
 
 ### What StripeMeter isn't
 - Not a **pricing** or **entitlement** layer (use a pricing stack like Autumn; StripeMeter ensures usage **numbers are correct**).
@@ -87,6 +99,16 @@ curl -fsS http://localhost:3000/metrics | head -n 30
 - Re-aggregation of 10k late events: ≤ 2 s
 - Duplicate events inside 24 h idempotency window: 0 double-counts
 
+## Production checklist
+- [x] Exact-once effect: idempotency window (duplicates won’t double-count)
+- [x] Late events handled via watermarks + re-aggregation
+- [x] Delta writes to Stripe (no over-reporting)
+- [x] Health endpoints + structured logs + `/metrics`
+- [x] Prometheus scrape + Grafana dashboard + alert recipes
+- [x] Replay via API for safe reprocessing
+- [x] Shadow Mode for safe test pushes
+- [x] Triage & repair runbook with copy-paste commands
+
 Reproduce locally:
 
 ```bash
@@ -120,17 +142,14 @@ Shadow Mode lets you post usage to Stripe’s test environment in parallel witho
 
 Each script checks health, sends a duplicate event with an explicit idempotency key, and prints the first lines of `/metrics` so you can see it counted once.
 
-**StripeMeter** is an alpha-stage, Stripe-native usage metering system that brings transparency and trust to SaaS billing. Built by developers, for developers who believe customers deserve to see exactly what they're paying for.
+**StripeMeter** is a Stripe-native usage metering system focused on correctness and operability. Built by developers who believe customers should be able to verify what they’re billed for.
 
 ## Why StripeMeter?
 
-- **Eliminate Bill Shock**: Real-time usage tracking with live cost projections
-- **Exactly-Once Guarantee**: Never double-bill customers with idempotent processing
-- **Invoice Parity**: What customers see = what Stripe bills (guaranteed within 0.5%)
-- **Lightning Fast**: Sub-minute freshness with horizontal scaling
-- **Battle-Tested**: Built for production with comprehensive error handling
-- **Beautiful UIs**: Admin dashboard + embeddable customer widgets
-- **Developer First**: Full-featured SDKs for Node.js and Python
+- Correct usage totals via idempotent ingest and late-event handling
+- Pre-invoice parity within ε, monitored by alerts; see the runbook
+- Fresh counters and delta pushes to Stripe to avoid over-reporting
+- Operator-grade: health, metrics, dashboards, and alert recipes
 
 ## What Makes StripeMeter Special
 
@@ -139,6 +158,10 @@ Unlike other billing solutions, StripeMeter is designed around three core princi
 1. **Transparency First**: Customers should never be surprised by their bill
 2. **Developer Experience**: Building usage-based pricing should be delightful
 3. **Community Driven**: Built by the community, for the community
+
+> **Adopters wanted (2 slots this week).**  
+> If you run Stripe usage-based pricing, I’ll pair for 30 minutes to wire one meter in staging or set up a nightly replay. You’ll get priority on your must-have knobs and a thank-you in the next release notes.  
+> → Open a discussion: “Staging adopter” or DM via the repo email.
 
 ## Architecture
 
