@@ -71,6 +71,14 @@ export const reconciliationDiffPct = new Gauge({
   labelNames: ['tenant', 'subscription_item', 'period'] as const,
 });
 
+// Re-aggregations counter
+export const reaggregationsTotal = new Counter({
+  name: 'reaggregations_total',
+  help: 'Total number of re-aggregation operations by reason',
+  registers: [registry],
+  labelNames: ['reason'] as const,
+});
+
 export async function renderMetrics(): Promise<string> {
   return await registry.metrics();
 }

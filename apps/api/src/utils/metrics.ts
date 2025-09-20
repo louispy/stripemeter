@@ -27,6 +27,22 @@ export const httpRequestDurationSeconds = new Histogram({
   buckets: [0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
 });
 
+// Ingestion metrics
+export const eventsIngestedTotal = new Counter({
+  name: 'events_ingested_total',
+  help: 'Total number of usage events ingested (accepted)',
+  registers: [registry],
+  labelNames: ['meter'] as const,
+});
+
+export const ingestLatencyMs = new Histogram({
+  name: 'ingest_latency_ms',
+  help: 'Latency in milliseconds from HTTP accept to events persisted',
+  registers: [registry],
+  // Milliseconds buckets: 5ms → 2.5s
+  buckets: [5, 10, 25, 50, 100, 250, 500, 1000, 2500],
+});
+
 type MetricsRequest = FastifyRequest & { __metricsStartHr?: bigint };
 
 export function registerHttpMetricsHooks(server: FastifyInstance): void {

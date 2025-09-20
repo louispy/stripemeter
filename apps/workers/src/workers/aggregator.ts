@@ -7,6 +7,7 @@ import { redis, db, events, counters, adjustments } from '@stripemeter/database'
 import { eq, and, gte, lte, lt, gt, sql } from 'drizzle-orm';
 import { logger } from '../utils/logger';
 import { getPeriodEnd } from '@stripemeter/core';
+import { reaggregationsTotal } from '../utils/metrics';
 
 interface AggregationJob {
   tenantId: string;
@@ -172,6 +173,11 @@ export class AggregatorWorker {
           );
         
         logger.info(`Updated counter for ${metric}/${customerRef}: sum=${finalSum}, max=${finalMax}`);
+        // Classify re-aggregation reason: late_event if recomputeStartDate advanced; otherwise on_time
+        try {
+          const reason = recomputeStartDate > periodStartDate ? 'late_event' : 'on_time';
+          reaggregationsTotal.labels(reason).inc();
+        } catch (_e) {}
       } else {
         // Insert new counter
         await db
@@ -190,6 +196,9 @@ export class AggregatorWorker {
           });
         
         logger.info(`Created counter for ${metric}/${customerRef}: sum=${finalSum}, max=${finalMax}`);
+        try {
+          reaggregationsTotal.labels('initial').inc();
+        } catch (_e) {}
       }
 
       // Update Redis cache for fast reads

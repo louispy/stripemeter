@@ -1,0 +1,52 @@
+{
+  "title": "StripeMeter - Observability",
+  "timezone": "browser",
+  "version": 1,
+  "schemaVersion": 38,
+  "panels": [
+    {
+      "type": "bargauge",
+      "title": "Events Ingested (5m) by Meter",
+      "targets": [
+        { "expr": "sum by (meter) (increase(events_ingested_total[5m]))", "legendFormat": "{{meter}}" }
+      ],
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 0 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Ingest Latency p50 / p95",
+      "targets": [
+        { "expr": "histogram_quantile(0.5, sum(rate(ingest_latency_ms_bucket[5m])) by (le))", "legendFormat": "p50" },
+        { "expr": "histogram_quantile(0.95, sum(rate(ingest_latency_ms_bucket[5m])) by (le))", "legendFormat": "p95" }
+      ],
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 0 }
+    },
+    {
+      "type": "bargauge",
+      "title": "Reaggregations (5m) by Reason",
+      "targets": [
+        { "expr": "sum by (reason) (increase(reaggregations_total[5m]))", "legendFormat": "{{reason}}" }
+      ],
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 9 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Drift Abs (avg by item)",
+      "targets": [
+        { "expr": "avg by (subscription_item) (reconciliation_diff_abs)", "legendFormat": "{{subscription_item}}" }
+      ],
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 9 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Drift % (avg by item)",
+      "targets": [
+        { "expr": "avg by (subscription_item) (reconciliation_diff_pct)", "legendFormat": "{{subscription_item}}" }
+      ],
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 18 }
+    }
+  ],
+  "templating": { "list": [] }
+}
+
+
