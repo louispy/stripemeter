@@ -54,20 +54,18 @@ class StripemeterClient:
         ts: str,
         resource_id: Optional[str] = None,
     ) -> str:
-        """Generate deterministic idempotency key"""
-        # Extract period bucket (minute precision)
+        """Generate deterministic idempotency key based on canonical tuple"""
         dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
-        period_bucket = dt.strftime("%Y-%m-%dT%H:%M")
-        
+        canonical_ts = dt.isoformat().replace("+00:00", "Z")
+
         components = [
             self.tenant_id,
             metric,
             customer_ref,
             resource_id or "default",
-            period_bucket,
-            str(int(time.time() * 1000)),
+            canonical_ts,
         ]
-        
+
         hash_input = "|".join(components)
         hash_value = hashlib.sha256(hash_input.encode()).hexdigest()[:16]
         return f"evt_{hash_value}"

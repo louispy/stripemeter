@@ -15,28 +15,23 @@ export function generateIdempotencyKey(params: {
   ts: string;
   nonce?: string;
 }): string {
-  const { tenantId, metric, customerRef, resourceId, ts, nonce } = params;
-  
-  // Extract period bucket (minute precision)
-  const date = new Date(ts);
-  const periodBucket = date.toISOString().slice(0, 16); // YYYY-MM-DDTHH:mm
-  
-  // Build key components
+  const { tenantId, metric, customerRef, resourceId, ts } = params;
+
+  // Canonical tuple without non-deterministic components
+  // Tuple: (tenantId, metric, customerRef, resourceId?, ts)
   const components = [
     tenantId,
     metric,
     customerRef,
     resourceId || 'default',
-    periodBucket,
-    nonce || Date.now().toString(),
+    new Date(ts).toISOString(),
   ];
-  
-  // Generate hash
+
   const hash = createHash('sha256')
     .update(components.join('|'))
     .digest('hex')
     .slice(0, 16);
-  
+
   return `evt_${hash}`;
 }
 
@@ -48,19 +43,18 @@ export function generateStripeIdempotencyKey(params: {
   subscriptionItemId: string;
   periodStart: string;
   quantity: number;
-  timestamp?: number;
 }): string {
-  const { tenantId, subscriptionItemId, periodStart, quantity, timestamp = Date.now() } = params;
-  
+  const { tenantId, subscriptionItemId, periodStart, quantity } = params;
+
+  // Deterministic: no timestamp in the key
   const components = [
     'push',
     tenantId,
     subscriptionItemId,
     periodStart,
     quantity.toFixed(6),
-    timestamp.toString(),
   ];
-  
+
   return components.join(':');
 }
 
@@ -93,12 +87,15 @@ export function generateDeterministicStripeIdempotencyKey(params: {
 export function isValidIdempotencyKey(key: string): boolean {
   // Check if it matches our expected formats
   const eventKeyPattern = /^evt_[a-f0-9]{16}$/;
-  const stripeKeyPattern = /^push:[a-f0-9-]+:si_[a-zA-Z0-9]+:\d{4}-\d{2}-\d{2}:\d+\.\d{6}:\d+$/;
+  // Allow both legacy (timestamped) and new deterministic push keys
+  const stripeKeyPatternLegacy = /^push:[a-f0-9-]+:si_[a-zA-Z0-9]+:\d{4}-\d{2}-\d{2}:\d+\.\d{6}:\d+$/;
+  const stripeKeyPatternDeterministic = /^push:[a-f0-9-]+:si_[a-zA-Z0-9]+:\d{4}-\d{2}-\d{2}:\d+\.\d{6}$/;
   const stripeShadowKeyPattern = /^push-shadow:[a-f0-9-]+:si_[a-zA-Z0-9]+:\d{4}-\d{2}-\d{2}:\d+\.\d{6}$/;
 
   return (
     eventKeyPattern.test(key) ||
-    stripeKeyPattern.test(key) ||
+    stripeKeyPatternLegacy.test(key) ||
+    stripeKeyPatternDeterministic.test(key) ||
     stripeShadowKeyPattern.test(key)
   );
 }
