@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { parse as csvParse } from 'csv-parse';
-import { createClient, type UsageEvent } from '@stripemeter/sdk-node';
+import type { UsageEvent } from '@stripemeter/core';
 import PQueue from 'p-queue';
 
 export interface ReplayOptions {
@@ -100,6 +100,7 @@ export async function runReplay(opts: ReplayOptions): Promise<number> {
 
   const apiUrl = opts.apiUrl || 'http://localhost:3000';
   const apiKey = opts.apiKey || process.env.STRIPEMETER_API_KEY || '';
+  const { createClient } = (await import('@stripemeter/sdk-node')) as any;
   const client = createClient({ apiUrl, apiKey, tenantId, batchSize });
 
   let sent = 0;
