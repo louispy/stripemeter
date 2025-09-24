@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { parse as csvParse } from 'csv-parse';
+import axios from 'axios';
 import type { UsageEvent } from '@stripemeter/core';
 import PQueue from 'p-queue';
 
@@ -98,10 +99,16 @@ export async function runReplay(opts: ReplayOptions): Promise<number> {
     return 0;
   }
 
-  const apiUrl = opts.apiUrl || 'http://localhost:3000';
+  const apiUrl = (opts.apiUrl || 'http://localhost:3000').replace(/\/$/, '');
   const apiKey = opts.apiKey || process.env.STRIPEMETER_API_KEY || '';
-  const { createClient } = (await import('@stripemeter/sdk-node')) as any;
-  const client = createClient({ apiUrl, apiKey, tenantId, batchSize });
+  const http = axios.create({
+    baseURL: apiUrl,
+    timeout: 10000,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+    },
+  });
 
   let sent = 0;
   let duplicates = 0;
@@ -113,9 +120,10 @@ export async function runReplay(opts: ReplayOptions): Promise<number> {
     const batch = filtered.slice(i, i + batchSize).map(e => ({ ...e, source: 'etl' as const }));
     queue.add(async () => {
       try {
-        const res = await client.trackBatch(batch.map(({ tenantId: _t, ...rest }) => rest));
-        sent += (res as any).accepted || 0;
-        duplicates += (res as any).duplicates || 0;
+        const response = await http.post('/v1/events/ingest', { events: batch });
+        const res = response.data as any;
+        sent += res.accepted || 0;
+        duplicates += res.duplicates || 0;
       } catch (_e) {
         errors += batch.length;
       }

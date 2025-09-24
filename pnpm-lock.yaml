@@ -375,9 +375,9 @@ importers:
       '@stripemeter/core':
         specifier: workspace:*
         version: link:../core
-      '@stripemeter/sdk-node':
-        specifier: workspace:*
-        version: link:../sdk-node
+      axios:
+        specifier: ^1.7.7
+        version: 1.12.2
       commander:
         specifier: ^11.1.0
         version: 11.1.0
