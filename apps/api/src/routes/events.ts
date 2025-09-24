@@ -17,6 +17,8 @@ import {
 import { Queue } from 'bullmq';
 import { warnIfNonUuidTenantId } from '../utils/logger';
 import { eventsIngestedTotal, ingestLatencyMs } from '../utils/metrics';
+import { requireScopes } from '../utils/auth';
+import { SCOPES } from '../constants/scopes';
 
 export const eventsRoutes: FastifyPluginAsync = async (server) => {
   // Lazily import database to play well with test mocks
@@ -119,6 +121,7 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
+    preHandler: requireScopes(SCOPES.PROJECT_WRITE, SCOPES.EVENTS_WRITE),
   }, async (request, reply) => {
     const ingestStart = process.hrtime.bigint();
     // Validate request body
@@ -317,6 +320,7 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
+    preHandler: requireScopes(SCOPES.PROJECT_WRITE, SCOPES.EVENTS_WRITE),
   }, async (request, reply) => {
     // Validate request body
     const validationResult = backfillRequestSchema.safeParse(request.body);
@@ -472,12 +476,13 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
+    preHandler: requireScopes(SCOPES.PROJECT_READ, SCOPES.EVENTS_READ),
   }, async (request, reply) => {
     const { operationId } = request.params;
 
     try {
       const operation = await backfillRepo.getById(operationId);
-      
+
       if (!operation) {
         return reply.status(404).send({
           error: 'Not Found',
@@ -556,6 +561,7 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
+    preHandler: requireScopes(SCOPES.PROJECT_READ, SCOPES.EVENTS_READ),
   }, async (request, reply) => {
     try {
       const operations = await backfillRepo.list({
@@ -631,7 +637,7 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
-
+    preHandler: requireScopes(SCOPES.PROJECT_READ, SCOPES.EVENTS_READ),
   }, async (_request, reply) => {
     const validationResult = getEventsQuerySchema.safeParse(_request.query);
     if (!validationResult.success) {

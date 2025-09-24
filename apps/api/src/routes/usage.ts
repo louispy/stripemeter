@@ -9,6 +9,8 @@ import { db, counters, priceMappings, redis, events } from '@stripemeter/databas
 import { InvoiceSimulator, type UsageLineItem, type PriceConfig } from '@stripemeter/pricing-lib';
 import { and, eq, gte, lte, sql } from 'drizzle-orm';
 import { GetUsageHistoryQueryInput } from '@stripemeter/core';
+import { requireScopes } from '../utils/auth';
+import { SCOPES } from '../constants/scopes';
 
 export const usageRoutes: FastifyPluginAsync = async (server) => {
   /**
@@ -72,6 +74,7 @@ export const usageRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
+    preHandler: requireScopes(SCOPES.PROJECT_READ, SCOPES.USAGE_READ),
   }, async (request, reply) => {
     const { tenantId, customerRef } = request.query;
 
@@ -179,6 +182,7 @@ export const usageRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
+    preHandler: requireScopes(SCOPES.PROJECT_WRITE, SCOPES.USAGE_WRITE),
   }, async (request, reply) => {
     const { tenantId, customerRef, periodStart, periodEnd } = request.body;
 
@@ -322,6 +326,7 @@ export const usageRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
+    preHandler: requireScopes(SCOPES.PROJECT_READ, SCOPES.USAGE_READ),
   }, async (request, reply) => {
     const validationResult = getUsageHistoryQuerySchema.safeParse(request.query);
     if (!validationResult.success) {
@@ -417,7 +422,7 @@ export const usageRoutes: FastifyPluginAsync = async (server) => {
       });
 
       // cache response
-      await redis.set(cacheKey, JSON.stringify(usage), 'EX', 30).catch(() => {});
+      await redis.set(cacheKey, JSON.stringify(usage), 'EX', 30).catch(() => { });
 
       reply.status(200).send({
         usage,

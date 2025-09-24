@@ -60,4 +60,11 @@ function getKeyDerivationSalt(): string {
   return process.env.API_KEY_SALT || 'dev-api-key-salt';
 }
 
-
+export function requireScopes(...scopes: string[]) {
+  return async (request: FastifyRequest, reply: FastifyReply) => {
+    const isAllowed = scopes.some(scope => request.tenant?.scopes.includes(scope));
+    if (!isAllowed) {
+      reply.status(403).send({ error: `Require one of: ${scopes}` });
+    }
+  }
+}

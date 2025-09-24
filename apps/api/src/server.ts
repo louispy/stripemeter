@@ -79,6 +79,19 @@ export async function buildServer() {
         { name: 'alerts', description: 'Alert configuration' },
         { name: 'simulations', description: 'Pricing simulation scenarios and runs' },
       ],
+      securityDefinitions: {
+        apiKeyAuth: {
+          type: 'apiKey',
+          name: 'x-api-key',
+          in: 'header',
+          description: 'Provide your API key',
+        },
+      },
+      security: [
+        {
+          apiKeyAuth: [],
+        },
+      ],
     },
   });
 
