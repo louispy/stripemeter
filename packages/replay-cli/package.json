@@ -20,7 +20,7 @@
     "dev": "tsup --watch",
     "clean": "rm -rf dist",
     "test": "vitest run --passWithNoTests",
-    "typecheck": "tsc --noEmit --skipLibCheck"
+    "typecheck": "tsc -p tsconfig.json --noEmit --skipLibCheck"
   },
   "dependencies": {
     "@stripemeter/core": "workspace:*",
