@@ -68,3 +68,36 @@ export function requireScopes(...scopes: string[]) {
     }
   }
 }
+
+export function verifyTenantId(toVerifyKey: string | null = null) {
+  return async (request: FastifyRequest, reply: FastifyReply) => {
+    const organisationId = request.tenant?.organisationId;
+    if (!organisationId) {
+      return reply.status(401).send({ error: 'Unauthenticated' });
+    }
+
+    let tenantId: string | null = null;
+
+    if (toVerifyKey === null) {
+      tenantId = (request.query as any)?.tenantId ?? (request.body as any)?.tenantId ?? null;
+    } else {
+      const toVerify: Object | Array<Object> | null =
+        (request.query as any)?.[toVerifyKey] ??
+        (request.body as any)?.[toVerifyKey] ?? null;
+
+      if (Array.isArray(toVerify)) {
+        const tenantIds: string[] = (toVerify as any[]).map(obj => obj.tenantId);
+        if (!tenantIds.every(id => id === organisationId)) {
+          return reply.status(403).send({ error: `Mismatched tenantId in ${toVerifyKey}` });
+        }
+      } else if (toVerify && typeof toVerify === 'object') {
+        tenantId = (toVerify as any)?.tenantId;
+      }
+    }
+
+    const isAllowed = tenantId !== null ? tenantId === organisationId : true;
+    if (!isAllowed) {
+      return reply.status(403).send({ error: `Mismatched tenantId` });
+    }
+  }
+}

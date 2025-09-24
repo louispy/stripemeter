@@ -17,8 +17,9 @@ import {
 import { Queue } from 'bullmq';
 import { warnIfNonUuidTenantId } from '../utils/logger';
 import { eventsIngestedTotal, ingestLatencyMs } from '../utils/metrics';
-import { requireScopes } from '../utils/auth';
+import { requireScopes, verifyTenantId } from '../utils/auth';
 import { SCOPES } from '../constants/scopes';
+import { request } from 'http';
 
 export const eventsRoutes: FastifyPluginAsync = async (server) => {
   // Lazily import database to play well with test mocks
@@ -121,7 +122,10 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
-    preHandler: requireScopes(SCOPES.PROJECT_WRITE, SCOPES.EVENTS_WRITE),
+    preHandler: [
+      requireScopes(SCOPES.PROJECT_WRITE, SCOPES.EVENTS_WRITE),
+      verifyTenantId('events'),
+    ],
   }, async (request, reply) => {
     const ingestStart = process.hrtime.bigint();
     // Validate request body
