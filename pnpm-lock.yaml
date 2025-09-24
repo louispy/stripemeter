@@ -370,6 +370,37 @@ importers:
         specifier: ^1.2.1
         version: 1.6.1(@types/node@20.19.17)
 
+  packages/replay-cli:
+    dependencies:
+      '@stripemeter/core':
+        specifier: workspace:*
+        version: link:../core
+      '@stripemeter/sdk-node':
+        specifier: workspace:*
+        version: link:../sdk-node
+      commander:
+        specifier: ^11.1.0
+        version: 11.1.0
+      csv-parse:
+        specifier: ^5.5.6
+        version: 5.6.0
+      p-queue:
+        specifier: ^7.4.1
+        version: 7.4.1
+    devDependencies:
+      '@types/node':
+        specifier: ^20.11.0
+        version: 20.19.17
+      tsup:
+        specifier: ^8.0.1
+        version: 8.5.0(tsx@4.20.5)(typescript@5.9.2)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.2
+      vitest:
+        specifier: ^1.2.1
+        version: 1.6.1(@types/node@20.19.17)
+
   packages/sdk-node:
     dependencies:
       '@stripemeter/core':
@@ -4524,6 +4555,10 @@ packages:
     resolution: {integrity: sha512-8guHBZCwKnFhYdHr2ysuRWErTwhoN2X8XELRlrRwpmfeY2jjuUN4taQMsULKUVo1K4DvZl+0pgfyoysHxvmvEw==}
     dev: false
 
+  /eventemitter3@5.0.1:
+    resolution: {integrity: sha512-GWkBvjiSZK87ELrYOSESUYeVIc9mvLLf/nXalMOS5dYrgZq9o5OVkbZAVM06CVxYsCwH9BDZFPlQTlPA1j4ahA==}
+    dev: false
+
   /events@3.3.0:
     resolution: {integrity: sha512-mQw+2fkQbALzQ7V0MY0IqdnXNOeTtP4r0lN9z7AAawCXgqea7bDii20AYrIBrFd/Hx0M2Ocz6S111CaFkUcb0Q==}
     engines: {node: '>=0.8.x'}
@@ -5564,6 +5599,19 @@ packages:
     dependencies:
       p-limit: 3.1.0
     dev: true
+
+  /p-queue@7.4.1:
+    resolution: {integrity: sha512-vRpMXmIkYF2/1hLBKisKeVYJZ8S2tZ0zEAmIJgdVKP2nq0nh4qCdf8bgw+ZgKrkh71AOCaqzwbJJk1WtdcF3VA==}
+    engines: {node: '>=12'}
+    dependencies:
+      eventemitter3: 5.0.1
+      p-timeout: 5.1.0
+    dev: false
+
+  /p-timeout@5.1.0:
+    resolution: {integrity: sha512-auFDyzzzGZZZdHz3BtET9VEz0SE/uMEAx7uWfGPucfzEwwe/xH0iVeZibQmANYE/hp9T2+UUZT5m+BKyrDp3Ew==}
+    engines: {node: '>=12'}
+    dev: false
 
   /package-json-from-dist@1.0.1:
     resolution: {integrity: sha512-UEZIS3/by4OC8vL3P2dTXRETpebLI2NiI5vIrjaD/5UtrkFX/tNbwjTSRAGC/+7CAo2pIcBaRgWmcBBHcsaCIw==}
