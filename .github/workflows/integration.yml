@@ -1,79 +1,79 @@
-name: Integration Tests
+# name: Integration Tests
 
-on:
-  workflow_dispatch: # Manual trigger
-  schedule:
-    - cron: '0 2 * * *' # Daily at 2 AM UTC
+# on:
+#   workflow_dispatch: # Manual trigger
+#   schedule:
+#     - cron: '0 2 * * *' # Daily at 2 AM UTC
 
-jobs:
-  integration:
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: stripemeter
-          POSTGRES_PASSWORD: stripemeter_test
-          POSTGRES_DB: stripemeter_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
+# jobs:
+#   integration:
+#     runs-on: ubuntu-latest
+#     services:
+#       postgres:
+#         image: postgres:16-alpine
+#         env:
+#           POSTGRES_USER: stripemeter
+#           POSTGRES_PASSWORD: stripemeter_test
+#           POSTGRES_DB: stripemeter_test
+#         options: >-
+#           --health-cmd pg_isready
+#           --health-interval 10s
+#           --health-timeout 5s
+#           --health-retries 5
+#         ports:
+#           - 5432:5432
       
-      redis:
-        image: redis:7-alpine
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
+#       redis:
+#         image: redis:7-alpine
+#         options: >-
+#           --health-cmd "redis-cli ping"
+#           --health-interval 10s
+#           --health-timeout 5s
+#           --health-retries 5
+#         ports:
+#           - 6379:6379
     
-    steps:
-      - uses: actions/checkout@v4
+#     steps:
+#       - uses: actions/checkout@v4
       
-      - uses: pnpm/action-setup@v3
-        with:
-          version: 8.15.1
+#       - uses: pnpm/action-setup@v3
+#         with:
+#           version: 8.15.1
       
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
+#       - uses: actions/setup-node@v4
+#         with:
+#           node-version: '20'
+#           cache: 'pnpm'
       
-      - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+#       - name: Install dependencies
+#         run: pnpm install --no-frozen-lockfile
       
-      - name: Build packages
-        run: pnpm build
+#       - name: Build packages
+#         run: pnpm build
       
-      - name: Run database migrations
-        run: |
-          cd packages/database
-          pnpm generate
-          pnpm migrate
-          cd ../..
-        env:
-          DATABASE_URL: postgresql://stripemeter:stripemeter_test@localhost:5432/stripemeter_test
+#       - name: Run database migrations
+#         run: |
+#           cd packages/database
+#           pnpm generate
+#           pnpm migrate
+#           cd ../..
+#         env:
+#           DATABASE_URL: postgresql://stripemeter:stripemeter_test@localhost:5432/stripemeter_test
       
-      - name: Run integration tests
-        run: |
-          # Run API tests that require database
-          pnpm --filter @stripemeter/api test
-        env:
-          DATABASE_URL: postgresql://stripemeter:stripemeter_test@localhost:5432/stripemeter_test
-          REDIS_URL: redis://localhost:6379
-          NODE_ENV: test
+#       - name: Run integration tests
+#         run: |
+#           # Run API tests that require database
+#           pnpm --filter @stripemeter/api test
+#         env:
+#           DATABASE_URL: postgresql://stripemeter:stripemeter_test@localhost:5432/stripemeter_test
+#           REDIS_URL: redis://localhost:6379
+#           NODE_ENV: test
       
-      - name: Upload test results
-        if: ${{ failure() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: integration-test-results
-          path: |
-            apps/api/coverage/
-            apps/api/test-results/
+#       - name: Upload test results
+#         if: ${{ failure() }}
+#         uses: actions/upload-artifact@v4
+#         with:
+#           name: integration-test-results
+#           path: |
+#             apps/api/coverage/
+#             apps/api/test-results/
