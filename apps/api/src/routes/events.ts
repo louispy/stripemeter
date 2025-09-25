@@ -19,7 +19,6 @@ import { warnIfNonUuidTenantId } from '../utils/logger';
 import { eventsIngestedTotal, ingestLatencyMs } from '../utils/metrics';
 import { requireScopes, verifyTenantId } from '../utils/auth';
 import { SCOPES } from '../constants/scopes';
-import { request } from 'http';
 
 export const eventsRoutes: FastifyPluginAsync = async (server) => {
   // Lazily import database to play well with test mocks
@@ -79,6 +78,26 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
     schema: {
       description: 'Ingest a batch of usage events',
       tags: ['events'],
+      body: {
+        type: 'object',
+        required: ['events'],
+        properties: {
+          events: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                metric: { type: 'string' },
+                tenantId: { type: 'string' },
+                customerRef: { type: 'string' },
+                quantity: { type: 'number' },
+                ts: { type: 'string', format: 'date-time' },
+                source: { type: 'string' },
+              },
+            }
+          },
+        },
+      },
       headers: {
         type: 'object',
         properties: {
@@ -118,6 +137,24 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
                 },
               },
             },
+          },
+        },
+        401: {
+          type: 'object',
+          properties: {
+            error: { type: 'string' },
+          },
+          example: {
+            error: 'Missing API Key',
+          },
+        },
+        403: {
+          type: 'object',
+          properties: {
+            error: { type: 'string' },
+          },
+          example: {
+            error: 'Mismatched tenantId in events',
           },
         },
       },

@@ -80,18 +80,19 @@ export async function buildServer() {
         { name: 'simulations', description: 'Pricing simulation scenarios and runs' },
       ],
       securityDefinitions: {
-        apiKeyAuth: {
+        ApiKeyAuth: {
           type: 'apiKey',
           name: 'x-api-key',
           in: 'header',
           description: 'Provide your API key',
         },
-      },
-      security: [
-        {
-          apiKeyAuth: [],
+        BearerAuth: {
+          type: 'apiKey',
+          name: 'Authorization',
+          in: 'header',
+          description: 'Bearer <apikey>',
         },
-      ],
+      },
     },
   });
 
@@ -126,6 +127,12 @@ export async function buildServer() {
   server.addHook('onResponse', persistAuditLog);
 
   await server.register(async (instance) => {
+    instance.addHook('onRoute', (routeOptions) => {
+      routeOptions.schema = {
+        ...routeOptions.schema,
+        security: [{ ApiKeyAuth: [] }, { BearerAuth: [] }],
+      };
+    });
     instance.addHook('preHandler', verifyTenantId());
     await instance.register(eventsRoutes, { prefix: '/v1/events' });
     await instance.register(usageRoutes, { prefix: '/v1/usage' });
