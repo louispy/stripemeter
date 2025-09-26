@@ -9,6 +9,8 @@ import { InvoiceSimulator } from '@stripemeter/pricing-lib';
 import { Queue } from 'bullmq';
 import { redis } from '@stripemeter/database';
 import { z } from 'zod';
+import { requireScopes } from '../utils/auth';
+import { SCOPES } from '../constants/scopes';
 
 // Request/Response schemas
 const CreateScenarioSchema = z.object({
@@ -116,6 +118,7 @@ export const simulationRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
+    preHandler: requireScopes(SCOPES.PROJECT_READ, SCOPES.SIMULATION_READ),
   }, async (request, reply) => {
     const tenantId = getTenantId(request);
     const { active, tag, limit = 20, offset = 0, sortBy = 'createdAt', sortOrder = 'desc' } = request.query as any;
@@ -201,6 +204,7 @@ export const simulationRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
+    preHandler: requireScopes(SCOPES.PROJECT_READ, SCOPES.SIMULATION_READ),
   }, async (request, reply) => {
     const tenantId = getTenantId(request);
     const { id } = request.params;
@@ -244,6 +248,7 @@ export const simulationRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
+    preHandler: requireScopes(SCOPES.PROJECT_WRITE, SCOPES.SIMULATION_WRITE),
   }, async (request, reply) => {
     const tenantId = getTenantId(request);
     const validationResult = CreateScenarioSchema.safeParse(request.body);
@@ -318,6 +323,7 @@ export const simulationRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
+    preHandler: requireScopes(SCOPES.PROJECT_WRITE, SCOPES.SIMULATION_WRITE),
   }, async (request, reply) => {
     const tenantId = getTenantId(request);
     const { id } = request.params;
@@ -390,6 +396,7 @@ export const simulationRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
+    preHandler: requireScopes(SCOPES.PROJECT_WRITE, SCOPES.SIMULATION_WRITE),
   }, async (request, reply) => {
     const tenantId = getTenantId(request);
     const { id } = request.params;
@@ -431,6 +438,7 @@ export const simulationRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
+    preHandler: requireScopes(SCOPES.PROJECT_WRITE, SCOPES.SIMULATION_WRITE),
   }, async (request, reply) => {
     const tenantId = getTenantId(request);
     const validationResult = RunScenarioSchema.safeParse(request.body);
@@ -528,6 +536,7 @@ export const simulationRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
+    preHandler: requireScopes(SCOPES.PROJECT_READ, SCOPES.SIMULATION_READ),
   }, async (request, reply) => {
     const tenantId = getTenantId(request);
     const { id } = request.params;
@@ -580,6 +589,7 @@ export const simulationRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
+    preHandler: requireScopes(SCOPES.PROJECT_READ, SCOPES.SIMULATION_READ),
   }, async (request, reply) => {
     const tenantId = getTenantId(request);
     const { scenarioId, status, runType, limit = 20, offset = 0 } = request.query as any;
@@ -642,6 +652,7 @@ export const simulationRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
+    preHandler: requireScopes(SCOPES.PROJECT_WRITE, SCOPES.SIMULATION_WRITE),
   }, async (request, reply) => {
     const tenantId = getTenantId(request);
     const validationResult = BatchRunSchema.safeParse(request.body);
@@ -767,6 +778,7 @@ export const simulationRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
+    preHandler: requireScopes(SCOPES.PROJECT_READ, SCOPES.SIMULATION_READ),
   }, async (request, reply) => {
     const tenantId = getTenantId(request);
     const { id } = request.params;

@@ -17,6 +17,8 @@ import {
 import { Queue } from 'bullmq';
 import { warnIfNonUuidTenantId } from '../utils/logger';
 import { eventsIngestedTotal, ingestLatencyMs } from '../utils/metrics';
+import { requireScopes, verifyTenantId } from '../utils/auth';
+import { SCOPES } from '../constants/scopes';
 
 export const eventsRoutes: FastifyPluginAsync = async (server) => {
   // Lazily import database to play well with test mocks
@@ -76,6 +78,26 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
     schema: {
       description: 'Ingest a batch of usage events',
       tags: ['events'],
+      body: {
+        type: 'object',
+        required: ['events'],
+        properties: {
+          events: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                metric: { type: 'string' },
+                tenantId: { type: 'string' },
+                customerRef: { type: 'string' },
+                quantity: { type: 'number' },
+                ts: { type: 'string', format: 'date-time' },
+                source: { type: 'string' },
+              },
+            }
+          },
+        },
+      },
       headers: {
         type: 'object',
         properties: {
@@ -117,8 +139,30 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
             },
           },
         },
+        401: {
+          type: 'object',
+          properties: {
+            error: { type: 'string' },
+          },
+          example: {
+            error: 'Missing API Key',
+          },
+        },
+        403: {
+          type: 'object',
+          properties: {
+            error: { type: 'string' },
+          },
+          example: {
+            error: 'Mismatched tenantId in events',
+          },
+        },
       },
     },
+    preHandler: [
+      requireScopes(SCOPES.PROJECT_WRITE, SCOPES.EVENTS_WRITE),
+      verifyTenantId('events'),
+    ],
   }, async (request, reply) => {
     const ingestStart = process.hrtime.bigint();
     // Validate request body
@@ -317,6 +361,7 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
+    preHandler: requireScopes(SCOPES.PROJECT_WRITE, SCOPES.EVENTS_WRITE),
   }, async (request, reply) => {
     // Validate request body
     const validationResult = backfillRequestSchema.safeParse(request.body);
@@ -472,12 +517,13 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
+    preHandler: requireScopes(SCOPES.PROJECT_READ, SCOPES.EVENTS_READ),
   }, async (request, reply) => {
     const { operationId } = request.params;
 
     try {
       const operation = await backfillRepo.getById(operationId);
-      
+
       if (!operation) {
         return reply.status(404).send({
           error: 'Not Found',
@@ -556,6 +602,7 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
+    preHandler: requireScopes(SCOPES.PROJECT_READ, SCOPES.EVENTS_READ),
   }, async (request, reply) => {
     try {
       const operations = await backfillRepo.list({
@@ -631,7 +678,7 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
-
+    preHandler: requireScopes(SCOPES.PROJECT_READ, SCOPES.EVENTS_READ),
   }, async (_request, reply) => {
     const validationResult = getEventsQuerySchema.safeParse(_request.query);
     if (!validationResult.success) {

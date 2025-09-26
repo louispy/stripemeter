@@ -6,6 +6,8 @@ import { FastifyPluginAsync } from 'fastify';
 import type { PriceMapping } from '@stripemeter/core';
 import { db, priceMappings } from '@stripemeter/database';
 import { eq, and } from 'drizzle-orm';
+import { requireScopes } from '../utils/auth';
+import { SCOPES } from '../constants/scopes';
 
 export const mappingsRoutes: FastifyPluginAsync = async (server) => {
   /**
@@ -49,6 +51,7 @@ export const mappingsRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
+    preHandler: requireScopes(SCOPES.PROJECT_READ, SCOPES.MAPPINGS_READ),
   }, async (request, reply) => {
     const { tenantId, active } = request.query;
     const whereClauses: any[] = [eq(priceMappings.tenantId, tenantId as any)];
@@ -100,6 +103,7 @@ export const mappingsRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
+    preHandler: requireScopes(SCOPES.PROJECT_WRITE, SCOPES.MAPPINGS_WRITE),
   }, async (request, reply) => {
     const body = request.body as any;
     const [row] = await db.insert(priceMappings).values(body).returning();
@@ -137,6 +141,7 @@ export const mappingsRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
+    preHandler: requireScopes(SCOPES.PROJECT_WRITE, SCOPES.MAPPINGS_WRITE),
   }, async (request, reply) => {
     const { id } = request.params;
     const updates = request.body as any;
@@ -167,6 +172,7 @@ export const mappingsRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
+    preHandler: requireScopes(SCOPES.PROJECT_WRITE, SCOPES.MAPPINGS_WRITE),
   }, async (request, reply) => {
     const { id } = request.params;
     await db.delete(priceMappings).where(eq(priceMappings.id, id as any));

@@ -7,6 +7,8 @@ import type { ReconciliationSummaryResponse } from '@stripemeter/core';
 import { db, priceMappings, reconciliationReports } from '@stripemeter/database';
 import { and, eq, gte, lte, sql } from 'drizzle-orm';
 import http from 'http';
+import { requireScopes } from '../utils/auth';
+import { SCOPES } from '../constants/scopes';
 
 export const reconciliationRoutes: FastifyPluginAsync = async (server) => {
   /**
@@ -89,6 +91,7 @@ export const reconciliationRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
+    preHandler: requireScopes(SCOPES.PROJECT_READ, SCOPES.RECONCILIATION_READ),
   }, async (request, reply) => {
     const { period } = request.params;
     const { tenantId, format } = request.query as any;
@@ -195,6 +198,7 @@ export const reconciliationRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
+    preHandler: requireScopes(SCOPES.PROJECT_WRITE, SCOPES.RECONCILIATION_WRITE),
   }, async (_request, reply) => {
     try {
       const port = Number(process.env.WORKER_HTTP_PORT || 3100);
@@ -421,6 +425,7 @@ export const reconciliationRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
+    preHandler: requireScopes(SCOPES.PROJECT_READ, SCOPES.RECONCILIATION_READ),
   }, async (_request, reply) => {
     // TODO: Apply adjustments
     reply.send({

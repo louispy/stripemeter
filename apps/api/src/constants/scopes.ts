@@ -1,0 +1,16 @@
+export const SCOPES = Object.freeze({
+  PROJECT_READ: 'project:read',
+  PROJECT_WRITE: 'project:write',
+  EVENTS_READ: 'events:read',
+  EVENTS_WRITE: 'events:write',
+  USAGE_READ: 'usage:read',
+  USAGE_WRITE: 'usage:write',
+  MAPPINGS_READ: 'mappings:read',
+  MAPPINGS_WRITE: 'mappings:write',
+  RECONCILIATION_READ: 'reconciliation:read',
+  RECONCILIATION_WRITE: 'reconciliation:write',
+  ALERTS_READ: 'alerts:read',
+  ALERTS_WRITE: 'alerts:write',
+  SIMULATION_READ: 'simulation:read',
+  SIMULATION_WRITE: 'simulation:write',
+});

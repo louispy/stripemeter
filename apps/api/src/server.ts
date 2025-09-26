@@ -9,7 +9,7 @@ import rateLimit from '@fastify/rate-limit';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
 import { errorHandler } from './utils/error-handler';
-import { verifyApiKey } from './utils/auth';
+import { verifyApiKey, verifyTenantId } from './utils/auth';
 import { perTenantRateLimit } from './utils/rate-limit';
 import { registerHttpMetricsHooks } from './utils/metrics';
 
@@ -79,6 +79,20 @@ export async function buildServer() {
         { name: 'alerts', description: 'Alert configuration' },
         { name: 'simulations', description: 'Pricing simulation scenarios and runs' },
       ],
+      securityDefinitions: {
+        ApiKeyAuth: {
+          type: 'apiKey',
+          name: 'x-api-key',
+          in: 'header',
+          description: 'Provide your API key',
+        },
+        BearerAuth: {
+          type: 'apiKey',
+          name: 'Authorization',
+          in: 'header',
+          description: 'Bearer <apikey>',
+        },
+      },
     },
   });
 
@@ -112,13 +126,22 @@ export async function buildServer() {
   // Persist audit logs after response
   server.addHook('onResponse', persistAuditLog);
 
-  await server.register(eventsRoutes, { prefix: '/v1/events' });
-  await server.register(usageRoutes, { prefix: '/v1/usage' });
-  await server.register(mappingsRoutes, { prefix: '/v1/mappings' });
-  await server.register(reconciliationRoutes, { prefix: '/v1/reconciliation' });
-  await server.register(alertsRoutes, { prefix: '/v1/alerts' });
-  await server.register(simulationRoutes, { prefix: '/v1/simulations' });
-  await server.register(adminRoutes, { prefix: '/v1/admin' });
+  await server.register(async (instance) => {
+    instance.addHook('onRoute', (routeOptions) => {
+      routeOptions.schema = {
+        ...routeOptions.schema,
+        security: [{ ApiKeyAuth: [] }, { BearerAuth: [] }],
+      };
+    });
+    instance.addHook('preHandler', verifyTenantId());
+    await instance.register(eventsRoutes, { prefix: '/v1/events' });
+    await instance.register(usageRoutes, { prefix: '/v1/usage' });
+    await instance.register(mappingsRoutes, { prefix: '/v1/mappings' });
+    await instance.register(reconciliationRoutes, { prefix: '/v1/reconciliation' });
+    await instance.register(alertsRoutes, { prefix: '/v1/alerts' });
+    await instance.register(simulationRoutes, { prefix: '/v1/simulations' });
+    await instance.register(adminRoutes, { prefix: '/v1/admin' });
+  });
 
   // Test-only database cleanup for deterministic results
   if (process.env.NODE_ENV === 'test') {

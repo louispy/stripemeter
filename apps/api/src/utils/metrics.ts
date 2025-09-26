@@ -43,6 +43,27 @@ export const ingestLatencyMs = new Histogram({
   buckets: [5, 10, 25, 50, 100, 250, 500, 1000, 2500],
 });
 
+export const authFailTotal = new Counter({
+  name: 'auth_fail_total',
+  help: 'Total number of authentication failures',
+  registers: [registry],
+  labelNames: ['route', 'method'],
+});
+
+export const crossTenantBlockTotal = new Counter({
+  name: 'cross_tenant_block_total',
+  help: 'Total number of blocked requests due to tenantId mismatch',
+  registers: [registry],
+  labelNames: ['route', 'method', 'org'],
+});
+
+export const scopeDenyTotal = new Counter({
+  name: 'scope_deny_total',
+  help: 'Total number of scope/role authorization denials',
+  registers: [registry],
+  labelNames: ['route', 'method', 'org'],
+});
+
 type MetricsRequest = FastifyRequest & { __metricsStartHr?: bigint };
 
 export function registerHttpMetricsHooks(server: FastifyInstance): void {
