@@ -294,6 +294,9 @@ importers:
       '@types/node':
         specifier: ^20.11.0
         version: 20.19.17
+      '@types/opossum':
+        specifier: ^8.1.9
+        version: 8.1.9
       tsx:
         specifier: ^4.7.0
         version: 4.20.5
@@ -3262,6 +3265,12 @@ packages:
     resolution: {integrity: sha512-gfehUI8N1z92kygssiuWvLiwcbOB3IRktR6hTDgJlXMYh5OvkPSRmgfoBUmfZt+vhwJtX7v1Yw4KvvAf7c5QKQ==}
     dependencies:
       undici-types: 6.21.0
+
+  /@types/opossum@8.1.9:
+    resolution: {integrity: sha512-Jm/tYxuJFefiwRYs+/EOsUP3ktk0c8siMgAHPLnA4PXF4wKghzcjqf88dY+Xii5jId5Txw4JV0FMKTpjbd7KJA==}
+    dependencies:
+      '@types/node': 20.19.17
+    dev: true
 
   /@types/prop-types@15.7.15:
     resolution: {integrity: sha512-F6bEyamV9jKGAFBEmlQnesRPGOQqS2+Uwi0Em15xenOxHaf2hv6L8YCVn3rPdPJOiJfPiCnLIRyvwVaqMY3MIw==}
