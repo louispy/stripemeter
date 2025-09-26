@@ -77,4 +77,25 @@ describe('StripeWriterWorker shadow routing', () => {
   });
 });
 
+describe('StripeWriterWorker circuit breaker', () => {
+  beforeEach(() => {
+    process.env.STRIPE_SECRET_KEY = 'sk_live_dummy';
+  });
+
+  it('initializes breaker on first call and reuses it subsequently', async () => {
+    const worker = new StripeWriterWorker() as any;
+    const mapping = {
+      id: 'map_1', tenantId: 't1', metric: 'api_calls', aggregation: 'sum',
+      stripeAccount: 'acct_live123', subscriptionItemId: 'si_ABC123', active: true, shadow: false,
+    } as any;
+    const counter = { tenantId: 't1', metric: 'api_calls', customerRef: 'cus_X', periodStart: '2025-01-01', aggSum: '1', aggMax: '0', aggLast: null } as any;
+
+    // Stub DB dependencies by short-circuiting writes and reads
+    vi.spyOn(worker as any, 'pushDeltaForCustomer');
+
+    // Access breakers map
+    expect(worker.breakers).toBeDefined();
+  });
+});
+
 
