@@ -401,9 +401,7 @@ export const reconciliationRoutes: FastifyPluginAsync = async (server) => {
       reason: string;
     };
   }>('/adjustments', {
-    config: {
-      bodyLimit: parseInt(process.env.RECONCILIATION_BODY_LIMIT_BYTES || '262144', 10),
-    },
+    bodyLimit: parseInt(process.env.RECONCILIATION_BODY_LIMIT_BYTES || '262144', 10),
     schema: {
       description: 'Approve a list of pending suggested adjustments',
       tags: ['reconciliation'],
@@ -414,7 +412,7 @@ export const reconciliationRoutes: FastifyPluginAsync = async (server) => {
           adjustmentIds: {
             type: 'array',
             items: { type: 'string', format: 'uuid' },
-            maxItems: parseInt(process.env.MAX_RECONCILIATION_APPROVALS_PER_REQUEST || '1000', 10),
+            maxItems: 1000,
           },
           reason: { type: 'string' },
         },

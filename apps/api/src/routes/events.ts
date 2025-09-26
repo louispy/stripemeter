@@ -75,9 +75,7 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
     Body: IngestEventRequestInput;
     Reply: IngestEventResponse;
   }>('/ingest', {
-    config: {
-      bodyLimit: parseInt(process.env.INGEST_BODY_LIMIT_BYTES || '1048576', 10),
-    },
+    bodyLimit: parseInt(process.env.INGEST_BODY_LIMIT_BYTES || '1048576', 10),
     schema: {
       description: 'Ingest a batch of usage events',
       tags: ['events'],
@@ -349,9 +347,7 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
     Body: BackfillRequestInput;
     Reply: any;
   }>('/backfill', {
-    config: {
-      bodyLimit: parseInt(process.env.BACKFILL_BODY_LIMIT_BYTES || '1048576', 10),
-    },
+    bodyLimit: parseInt(process.env.BACKFILL_BODY_LIMIT_BYTES || '1048576', 10),
     schema: {
       description: 'Backfill historical usage events',
       tags: ['events'],
