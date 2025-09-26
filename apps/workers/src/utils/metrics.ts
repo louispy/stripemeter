@@ -79,6 +79,28 @@ export const reaggregationsTotal = new Counter({
   labelNames: ['reason'] as const,
 });
 
+// Adjustments lifecycle metrics
+export const adjustmentsCreatedTotal = new Counter({
+  name: 'adjustments_created_total',
+  help: 'Total number of adjustments created',
+  registers: [registry],
+  labelNames: ['tenant', 'reason'] as const,
+});
+
+export const adjustmentsApprovedTotal = new Counter({
+  name: 'adjustments_approved_total',
+  help: 'Total number of adjustments approved',
+  registers: [registry],
+  labelNames: ['tenant', 'reason'] as const,
+});
+
+export const adjustmentsRevertedTotal = new Counter({
+  name: 'adjustments_reverted_total',
+  help: 'Total number of adjustments reverted',
+  registers: [registry],
+  labelNames: ['tenant', 'reason'] as const,
+});
+
 export async function renderMetrics(): Promise<string> {
   return await registry.metrics();
 }

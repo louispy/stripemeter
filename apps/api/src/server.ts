@@ -138,6 +138,8 @@ export async function buildServer() {
     await instance.register(usageRoutes, { prefix: '/v1/usage' });
     await instance.register(mappingsRoutes, { prefix: '/v1/mappings' });
     await instance.register(reconciliationRoutes, { prefix: '/v1/reconciliation' });
+    const { adjustmentsRoutes } = await import('./routes/adjustments');
+    await instance.register(adjustmentsRoutes, { prefix: '/v1/adjustments' });
     await instance.register(alertsRoutes, { prefix: '/v1/alerts' });
     await instance.register(simulationRoutes, { prefix: '/v1/simulations' });
     await instance.register(adminRoutes, { prefix: '/v1/admin' });

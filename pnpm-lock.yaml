@@ -348,6 +348,22 @@ importers:
         specifier: ^1.2.1
         version: 1.6.1(@types/node@20.19.17)
 
+  packages/ops-cli:
+    dependencies:
+      axios:
+        specifier: ^1.7.2
+        version: 1.12.2
+      commander:
+        specifier: ^11.0.0
+        version: 11.1.0
+    devDependencies:
+      tsup:
+        specifier: ^8.0.1
+        version: 8.5.0(tsx@4.20.5)(typescript@5.9.2)
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.2
+
   packages/pricing-lib:
     dependencies:
       '@stripemeter/core':
