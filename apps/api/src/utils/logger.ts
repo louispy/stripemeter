@@ -22,7 +22,14 @@ export const logger = pino({
     req: (req) => ({
       method: req.method,
       url: req.url,
-      headers: req.headers,
+      headers: (() => {
+        const headers = { ...(req.headers || {}) } as Record<string, any>;
+        const redact = ['authorization', 'x-api-key'];
+        for (const key of Object.keys(headers)) {
+          if (redact.includes(key.toLowerCase())) headers[key] = '[redacted]';
+        }
+        return headers;
+      })(),
       hostname: req.hostname,
       remoteAddress: req.ip,
       remotePort: req.socket?.remotePort,

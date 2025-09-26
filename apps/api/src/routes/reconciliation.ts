@@ -401,6 +401,7 @@ export const reconciliationRoutes: FastifyPluginAsync = async (server) => {
       reason: string;
     };
   }>('/adjustments', {
+    bodyLimit: parseInt(process.env.RECONCILIATION_BODY_LIMIT_BYTES || '262144', 10),
     schema: {
       description: 'Approve a list of pending suggested adjustments',
       tags: ['reconciliation'],
@@ -411,6 +412,7 @@ export const reconciliationRoutes: FastifyPluginAsync = async (server) => {
           adjustmentIds: {
             type: 'array',
             items: { type: 'string', format: 'uuid' },
+            maxItems: 1000,
           },
           reason: { type: 'string' },
         },
@@ -428,6 +430,10 @@ export const reconciliationRoutes: FastifyPluginAsync = async (server) => {
     preHandler: requireScopes(SCOPES.RECONCILIATION_WRITE),
   }, async (request, reply) => {
     const { adjustmentIds } = request.body as any;
+    const max = parseInt(process.env.MAX_RECONCILIATION_APPROVALS_PER_REQUEST || '1000', 10);
+    if (adjustmentIds.length > max) {
+      return reply.status(400).send({ applied: 0, failed: 0, error: `Too many ids: ${adjustmentIds.length} > ${max}` } as any);
+    }
     let applied = 0;
     let failed = 0;
     try {

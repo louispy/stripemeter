@@ -75,6 +75,7 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
     Body: IngestEventRequestInput;
     Reply: IngestEventResponse;
   }>('/ingest', {
+    bodyLimit: parseInt(process.env.INGEST_BODY_LIMIT_BYTES || '1048576', 10),
     schema: {
       description: 'Ingest a batch of usage events',
       tags: ['events'],
@@ -180,6 +181,15 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
     }
 
     const { events: eventBatch } = validationResult.data;
+    const maxBatch = parseInt(process.env.MAX_INGEST_BATCH || '1000', 10);
+    if (eventBatch.length > maxBatch) {
+      return reply.status(400).send({
+        accepted: 0,
+        duplicates: 0,
+        requestId: request.id,
+        errors: [{ index: -1, error: `Batch too large: ${eventBatch.length} > ${maxBatch}` }],
+      });
+    }
     const errors: Array<{ index: number; error: string }> = [];
     const results: Array<{ idempotencyKey: string; status: 'accepted' | 'duplicate' | 'error'; error?: string }> = [];
     const eventsToInsert = [];
@@ -191,6 +201,7 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
       : (headerIdempotencyKeyRaw as string | undefined);
 
     // Process each event
+    const maxMetaBytes = parseInt(process.env.MAX_EVENT_META_BYTES || '4096', 10);
     for (let i = 0; i < eventBatch.length; i++) {
       const event = eventBatch[i];
 
@@ -216,6 +227,16 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
           });
           results.push({ idempotencyKey, status: 'error', error: 'Event timestamp too far in the future' });
           continue;
+        }
+
+        // Optional meta size cap
+        if (event.meta) {
+          const metaLen = Buffer.byteLength(typeof event.meta === 'string' ? event.meta : JSON.stringify(event.meta));
+          if (metaLen > maxMetaBytes) {
+            errors.push({ index: i, error: `Meta too large (${metaLen} bytes > ${maxMetaBytes})` });
+            results.push({ idempotencyKey, status: 'error', error: 'Meta too large' });
+            continue;
+          }
         }
 
         eventsToInsert.push({
@@ -326,6 +347,7 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
     Body: BackfillRequestInput;
     Reply: any;
   }>('/backfill', {
+    bodyLimit: parseInt(process.env.BACKFILL_BODY_LIMIT_BYTES || '1048576', 10),
     schema: {
       description: 'Backfill historical usage events',
       tags: ['events'],
@@ -373,6 +395,17 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
     }
 
     const { tenantId, metric, customerRef, periodStart, periodEnd, events, csvData, reason } = validationResult.data;
+
+    // Enforce max backfill events if using JSON events
+    if (events && events.length) {
+      const maxBackfillEvents = parseInt(process.env.MAX_BACKFILL_EVENTS || '5000', 10);
+      if (events.length > maxBackfillEvents) {
+        return reply.status(400).send({
+          error: 'Validation Error',
+          message: `Too many events: ${events.length} > ${maxBackfillEvents}`,
+        });
+      }
+    }
 
     try {
       // Determine source type and data

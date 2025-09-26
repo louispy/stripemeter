@@ -4,6 +4,7 @@
 
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { ZodError } from 'zod';
+import * as Sentry from '@sentry/node';
 import { logger } from './logger';
 
 export async function errorHandler(
@@ -11,7 +12,7 @@ export async function errorHandler(
   request: FastifyRequest,
   reply: FastifyReply
 ): Promise<void> {
-  // Log the error
+  // Log the error (avoid logging headers/body)
   logger.error({
     err: error as any,
     request: {
@@ -21,6 +22,13 @@ export async function errorHandler(
       query: request.query,
     },
   });
+
+  // Capture in Sentry if configured
+  try {
+    if ((Sentry as any)?.getCurrentHub?.()) {
+      Sentry.captureException(error);
+    }
+  } catch {}
 
   // Handle Zod validation errors
   if (error instanceof ZodError) {

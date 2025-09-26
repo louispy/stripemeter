@@ -3,6 +3,7 @@
  */
 
 import Fastify from 'fastify';
+import * as Sentry from '@sentry/node';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
@@ -26,12 +27,49 @@ import { adminRoutes } from './routes/admin';
 import { persistAuditLog } from './utils/audit';
 
 export async function buildServer() {
+  // Default to bypass auth in test environment unless explicitly disabled
+  if (process.env.NODE_ENV === 'test' && process.env.BYPASS_AUTH === undefined) {
+    process.env.BYPASS_AUTH = '1';
+  }
+  // Initialize Sentry if configured
+  try {
+    const dsn = process.env.SENTRY_DSN;
+    if (dsn) {
+      Sentry.init({
+        dsn,
+        environment: process.env.NODE_ENV || 'development',
+        release: process.env.GIT_SHA || process.env.RELEASE || undefined,
+        tracesSampleRate: Number(process.env.SENTRY_TRACES_SAMPLE_RATE || '0'),
+        beforeSend(event) {
+          // Best-effort redaction of headers and large bodies
+          if (event.request) {
+            if ((event.request as any).headers) {
+              const headers = (event.request as any).headers as Record<string, any>;
+              for (const key of Object.keys(headers)) {
+                if (key.toLowerCase() === 'authorization' || key.toLowerCase() === 'x-api-key') {
+                  headers[key] = '[redacted]';
+                }
+              }
+              (event.request as any).headers = headers;
+            }
+            if ((event.request as any).data && typeof (event.request as any).data === 'string') {
+              const max = Number(process.env.SENTRY_MAX_BODY_CHARS || '1024');
+              (event.request as any).data = (event.request as any).data.slice(0, max);
+            }
+          }
+          return event;
+        },
+      });
+    }
+  } catch {}
+
   const server = Fastify({
     logger: true,
     requestIdHeader: 'x-request-id',
     requestIdLogLabel: 'requestId',
     disableRequestLogging: false,
     trustProxy: true,
+    bodyLimit: parseInt(process.env.API_BODY_LIMIT_BYTES || '1048576', 10),
   });
 
   // Register error handler
@@ -45,7 +83,10 @@ export async function buildServer() {
   });
 
   await server.register(cors, {
-    origin: process.env.API_CORS_ORIGIN?.split(',') || true,
+    origin: (() => {
+      const origins = process.env.API_CORS_ORIGIN ? process.env.API_CORS_ORIGIN.split(',').map(s => s.trim()).filter(Boolean) : [];
+      return origins.length > 0 ? origins : false;
+    })(),
     credentials: true,
   });
 
@@ -148,12 +189,15 @@ export async function buildServer() {
   // Test-only database cleanup for deterministic results
   if (process.env.NODE_ENV === 'test') {
     try {
-      const { db, events, simulationRuns, simulationScenarios, simulationBatches } = await import('@stripemeter/database');
-      // Order matters due to FKs
-      await db.delete(simulationRuns);
-      await db.delete(simulationBatches);
-      await db.delete(simulationScenarios);
-      await db.delete(events);
+      const mod: any = await import('@stripemeter/database');
+      const db = mod.db;
+      // Clean tables if available in the mock/real module
+      const candidates = ['simulationRuns', 'simulationBatches', 'simulationScenarios', 'events'];
+      for (const name of candidates) {
+        if (db && mod[name]) {
+          try { await db.delete(mod[name]); } catch {}
+        }
+      }
     } catch (err) {
       server.log.warn({ err }, 'test db cleanup failed');
     }
