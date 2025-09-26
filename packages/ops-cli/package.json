@@ -1,0 +1,21 @@
+{
+  "name": "@stripemeter/ops-cli",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "sm-ops": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --out-dir dist",
+    "dev": "tsup src/index.ts --watch --format esm --dts --out-dir dist"
+  },
+  "dependencies": {
+    "commander": "^11.0.0",
+    "axios": "^1.7.2"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.1",
+    "typescript": "^5.4.0"
+  }
+}
+

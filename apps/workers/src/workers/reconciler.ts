@@ -197,7 +197,7 @@ export class ReconcilerWorker {
       await db.insert(reconciliationReports).values(report);
       reports.push(report);
 
-      // If investigating, create suggested adjustments
+      // If investigating, create suggested adjustments (pending)
       if (status === 'investigate') {
         await this.createSuggestedAdjustments(
           tenantId,
@@ -327,6 +327,7 @@ export class ReconcilerWorker {
             delta: adjustmentAmount.toString(),
             reason: 'correction' as const,
             actor: 'system:reconciliation',
+            status: 'pending' as const,
             createdAt: new Date(),
           });
 

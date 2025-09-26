@@ -4,9 +4,9 @@
 
 import { FastifyPluginAsync } from 'fastify';
 import type { ReconciliationSummaryResponse } from '@stripemeter/core';
-import { db, priceMappings, reconciliationReports } from '@stripemeter/database';
-import { and, eq, gte, lte, sql } from 'drizzle-orm';
 import http from 'http';
+import { db, adjustments, priceMappings, reconciliationReports } from '@stripemeter/database';
+import { and, eq, gte, lte, sql } from 'drizzle-orm';
 import { requireScopes } from '../utils/auth';
 import { SCOPES } from '../constants/scopes';
 
@@ -402,7 +402,7 @@ export const reconciliationRoutes: FastifyPluginAsync = async (server) => {
     };
   }>('/adjustments', {
     schema: {
-      description: 'Apply suggested adjustments',
+      description: 'Approve a list of pending suggested adjustments',
       tags: ['reconciliation'],
       body: {
         type: 'object',
@@ -425,12 +425,24 @@ export const reconciliationRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
-    preHandler: requireScopes(SCOPES.PROJECT_READ, SCOPES.RECONCILIATION_READ),
-  }, async (_request, reply) => {
-    // TODO: Apply adjustments
-    reply.send({
-      applied: 0,
-      failed: 0,
-    });
+    preHandler: requireScopes(SCOPES.RECONCILIATION_WRITE),
+  }, async (request, reply) => {
+    const { adjustmentIds } = request.body as any;
+    let applied = 0;
+    let failed = 0;
+    try {
+      for (const id of adjustmentIds) {
+        try {
+          await db
+            .update(adjustments)
+            .set({ status: 'approved' as any, approvedBy: 'api:reconciliation', approvedAt: new Date() })
+            .where(and(eq(adjustments.id, id as any), eq(adjustments.status as any, 'pending' as any)));
+          applied += 1;
+        } catch (_e) {
+          failed += 1;
+        }
+      }
+    } catch (_e) {}
+    reply.send({ applied, failed });
   });
 };

@@ -64,6 +64,28 @@ export const scopeDenyTotal = new Counter({
   labelNames: ['route', 'method', 'org'],
 });
 
+// Adjustments metrics (API-side actions)
+export const apiAdjustmentsCreatedTotal = new Counter({
+  name: 'api_adjustments_created_total',
+  help: 'Total adjustments created via API',
+  registers: [registry],
+  labelNames: ['org', 'reason'],
+});
+
+export const apiAdjustmentsApprovedTotal = new Counter({
+  name: 'api_adjustments_approved_total',
+  help: 'Total adjustments approved via API',
+  registers: [registry],
+  labelNames: ['org'],
+});
+
+export const apiAdjustmentsRevertedTotal = new Counter({
+  name: 'api_adjustments_reverted_total',
+  help: 'Total adjustments reverted via API',
+  registers: [registry],
+  labelNames: ['org'],
+});
+
 type MetricsRequest = FastifyRequest & { __metricsStartHr?: bigint };
 
 export function registerHttpMetricsHooks(server: FastifyInstance): void {

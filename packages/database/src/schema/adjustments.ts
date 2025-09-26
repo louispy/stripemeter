@@ -16,6 +16,16 @@ export const adjustments = pgTable('adjustments', {
     enum: ['backfill', 'correction', 'promo', 'credit', 'manual'] 
   }).notNull(),
   actor: text('actor').notNull(),
+  status: text('status', {
+    enum: ['pending', 'approved', 'reverted']
+  }).notNull().default('pending'),
+  approvedBy: text('approved_by'),
+  approvedAt: timestamp('approved_at', { withTimezone: true }),
+  revertedBy: text('reverted_by'),
+  revertedAt: timestamp('reverted_at', { withTimezone: true }),
+  parentAdjustmentId: uuid('parent_adjustment_id'),
+  requestId: text('request_id'),
+  note: text('note'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => {
   return {
@@ -26,6 +36,9 @@ export const adjustments = pgTable('adjustments', {
     // Index for customer-specific adjustments
     tenantCustomerIdx: index('idx_adjustments_tenant_customer')
       .on(table.tenantId, table.customerRef),
+    // Index for filtering by status quickly
+    statusIdx: index('idx_adjustments_status')
+      .on(table.status, table.tenantId),
   };
 });
 
