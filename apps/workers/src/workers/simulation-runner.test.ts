@@ -5,6 +5,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { SimulationRunnerWorker } from './simulation-runner';
 import { InvoiceSimulator } from '@stripemeter/pricing-lib';
+import { compareInvoices } from '@stripemeter/core';
 
 // Mock dependencies
 vi.mock('@stripemeter/database', () => ({
@@ -53,6 +54,10 @@ describe('SimulationRunnerWorker', () => {
   afterEach(() => {
     vi.clearAllMocks();
   });
+
+  // Use shared assertions with a small adapter to match previous signature
+  const compareResults = (actual: any, expected: any, tolerances?: any) =>
+    compareInvoices(actual, expected, { tolerances });
 
   describe('Simulation Execution', () => {
     it('should successfully run a basic simulation', async () => {
