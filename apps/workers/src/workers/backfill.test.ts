@@ -1,3 +1,34 @@
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { createS3ClientFromEnv } from './backfill';
+
+describe('createS3ClientFromEnv', () => {
+  const env = process.env;
+
+  beforeEach(() => {
+    process.env = { ...env };
+  });
+
+  afterEach(() => {
+    process.env = env;
+  });
+
+  it('returns null when credentials are missing', () => {
+    delete process.env.AWS_ACCESS_KEY_ID;
+    delete process.env.AWS_SECRET_ACCESS_KEY;
+    const client = createS3ClientFromEnv();
+    expect(client).toBeNull();
+  });
+
+  it('returns S3 client when credentials are present', () => {
+    process.env.AWS_ACCESS_KEY_ID = 'minioadmin';
+    process.env.AWS_SECRET_ACCESS_KEY = 'minioadmin';
+    process.env.S3_ENDPOINT = 'http://localhost:9000';
+    process.env.S3_FORCE_PATH_STYLE = 'true';
+    const client = createS3ClientFromEnv();
+    expect(client).toBeTruthy();
+  });
+});
+
 /**
  * Backfill Worker tests
  */
