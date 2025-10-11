@@ -13,6 +13,7 @@ export * from './schemas/validation';
 export * from './utils/idempotency';
 export * from './utils/period';
 export * from './utils/assertions';
+export * from './utils/csv';
 
 // Constants
 export const DEFAULT_LATENESS_WINDOW_HOURS = 48;
