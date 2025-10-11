@@ -99,6 +99,29 @@ describe('Backfill API', () => {
       expect(body).toHaveProperty('message');
     });
 
+    test('should accept request with sourceUrl (csv in S3/MinIO)', async () => {
+      const response = await server.inject({
+        method: 'POST',
+        url: '/v1/events/backfill',
+        headers: {
+          'x-api-key': 'test-key',
+        },
+        payload: {
+          tenantId: 'test-tenant',
+          metric: 'api_calls',
+          periodStart: '2024-01-01',
+          periodEnd: '2024-01-31',
+          reason: 'Historical data import via S3',
+          sourceUrl: 's3://stripemeter-backfill/test.csv',
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body).toHaveProperty('operationId');
+      expect(body).toHaveProperty('status', 'pending');
+    });
+
     test('should accept valid CSV backfill request', async () => {
       const csvData = `tenantId,metric,customerRef,quantity,ts,source
 test-tenant,api_calls,customer-1,100,2024-01-15T10:00:00Z,import

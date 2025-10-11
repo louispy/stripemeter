@@ -362,6 +362,7 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
           periodEnd: { type: 'string', format: 'date' },
           events: { type: 'array' },
           csvData: { type: 'string' },
+          sourceUrl: { type: 'string' },
           reason: { type: 'string' },
         },
       },
@@ -394,7 +395,7 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
       });
     }
 
-    const { tenantId, metric, customerRef, periodStart, periodEnd, events, csvData, reason } = validationResult.data;
+    const { tenantId, metric, customerRef, periodStart, periodEnd, events, csvData, reason, sourceUrl } = validationResult.data;
 
     // Enforce max backfill events if using JSON events
     if (events && events.length) {
@@ -411,7 +412,7 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
       // Determine source type and data
       let sourceType: 'json' | 'csv' | 'api';
       let sourceData: string | undefined;
-      let sourceUrl: string | undefined;
+      let resolvedSourceUrl: string | undefined;
 
       if (events && events.length > 0) {
         sourceType = 'json';
@@ -419,6 +420,9 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
       } else if (csvData) {
         sourceType = 'csv';
         sourceData = csvData;
+      } else if (sourceUrl) {
+        sourceType = 'csv';
+        resolvedSourceUrl = sourceUrl;
       } else {
         return reply.status(400).send({
           error: 'Invalid Request',
@@ -428,14 +432,14 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
 
       // For large data, we could upload to S3/MinIO here
       // For now, we'll store small data directly
-      const dataSize = sourceData.length;
+      const dataSize = sourceData?.length ?? 0;
       const maxDirectSize = parseInt(process.env.MAX_DIRECT_BACKFILL_SIZE || '1048576', 10); // 1MB default
 
-      if (dataSize > maxDirectSize) {
-        // TODO: Implement S3/MinIO upload for large data
+      // If data is large and S3 env present, instruct worker to load via S3 (future upload site handled by client/tools)
+      if (!resolvedSourceUrl && sourceData && dataSize > maxDirectSize) {
         return reply.status(413).send({
           error: 'Payload Too Large',
-          message: `Data size (${dataSize} bytes) exceeds maximum direct size (${maxDirectSize} bytes). S3/MinIO upload not yet implemented.`,
+          message: `Data size (${dataSize} bytes) exceeds maximum direct size (${maxDirectSize} bytes). Provide sourceUrl (s3://...) when using large CSV.`,
         });
       }
 
@@ -451,7 +455,7 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
         actor: 'api:backfill', // TODO: Extract from auth context
         sourceType,
         sourceData,
-        sourceUrl,
+        sourceUrl: resolvedSourceUrl,
         metadata: {
           requestId: request.id,
           userAgent: request.headers['user-agent'],
@@ -470,7 +474,7 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
           periodEnd: periodEnd || periodStart,
           sourceType,
           sourceData,
-          sourceUrl,
+          sourceUrl: resolvedSourceUrl,
           reason,
           actor: 'api:backfill',
         }, {

@@ -77,10 +77,11 @@ export const backfillRequestSchema = z.object({
   periodEnd: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   events: z.array(usageEventSchema).max(parseInt(process.env.MAX_BACKFILL_EVENTS || '5000', 10)).optional(),
   csvData: z.string().optional(),
+  sourceUrl: z.string().url().optional(),
   reason: z.string().min(1).max(500),
 }).refine(
-  (data) => data.events || data.csvData,
-  { message: 'Either events or csvData must be provided' }
+  (data) => data.events || data.csvData || data.sourceUrl,
+  { message: 'Either events, csvData, or sourceUrl must be provided' }
 );
 
 // Projection request schema
