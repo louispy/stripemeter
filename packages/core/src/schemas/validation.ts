@@ -11,7 +11,10 @@ const isoDateTimeSchema = z.string().refine(
 );
 
 // TenantId: relax from UUID to string for DX; still allow UUIDs but don't require
-const tenantIdSchema = z.string().min(1);
+const tenantIdSchema = (() => {
+  const strict = process.env.STRICT_TENANT_ID_UUID === 'true';
+  return strict ? z.string().uuid() : z.string().min(1);
+})();
 
 // Usage event schema
 export const usageEventSchema = z.object({
@@ -37,7 +40,7 @@ export const getUsageHistoryQuerySchema = z.object({
 
 // Batch event ingestion schema
 export const ingestEventRequestSchema = z.object({
-  events: z.array(usageEventSchema).min(1).max(1000),
+  events: z.array(usageEventSchema).min(1).max(parseInt(process.env.MAX_INGEST_BATCH || '1000', 10)),
 });
 
 // Get Event List Query schema
@@ -60,7 +63,8 @@ export const adjustmentRequestSchema = z.object({
   metric: z.string().min(1).max(100),
   customerRef: z.string().min(1).max(255),
   periodStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  delta: z.number().finite(),
+  delta: z.number().finite().refine((n) => Math.abs(n) <= parseFloat(process.env.MAX_ADJUSTMENT_DELTA || '1000000'),
+    { message: 'Adjustment delta out of bounds' }),
   reason: z.enum(['backfill', 'correction', 'promo', 'credit', 'manual']),
 });
 
@@ -71,12 +75,13 @@ export const backfillRequestSchema = z.object({
   customerRef: z.string().min(1).max(255).optional(),
   periodStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   periodEnd: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  events: z.array(usageEventSchema).optional(),
+  events: z.array(usageEventSchema).max(parseInt(process.env.MAX_BACKFILL_EVENTS || '5000', 10)).optional(),
   csvData: z.string().optional(),
+  sourceUrl: z.string().url().optional(),
   reason: z.string().min(1).max(500),
 }).refine(
-  (data) => data.events || data.csvData,
-  { message: 'Either events or csvData must be provided' }
+  (data) => data.events || data.csvData || data.sourceUrl,
+  { message: 'Either events, csvData, or sourceUrl must be provided' }
 );
 
 // Projection request schema

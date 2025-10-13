@@ -58,17 +58,7 @@ export class BackfillWorker {
     this.backfillRepo = new BackfillRepository();
 
     // Initialize S3 client if credentials are available
-    if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
-      this.s3Client = new S3Client({
-        endpoint: process.env.S3_ENDPOINT || undefined,
-        region: process.env.AWS_REGION || 'us-east-1',
-        credentials: {
-          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-        },
-        forcePathStyle: process.env.S3_FORCE_PATH_STYLE === 'true',
-      });
-    }
+    this.s3Client = createS3ClientFromEnv();
   }
 
   async start() {
@@ -346,4 +336,19 @@ export class BackfillWorker {
       },
     });
   }
+}
+
+export function createS3ClientFromEnv(): S3Client | null {
+  const accessKey = process.env.AWS_ACCESS_KEY_ID;
+  const secretKey = process.env.AWS_SECRET_ACCESS_KEY;
+  if (!accessKey || !secretKey) return null;
+  return new S3Client({
+    endpoint: process.env.S3_ENDPOINT || undefined,
+    region: process.env.AWS_REGION || 'us-east-1',
+    credentials: {
+      accessKeyId: accessKey,
+      secretAccessKey: secretKey,
+    },
+    forcePathStyle: process.env.S3_FORCE_PATH_STYLE === 'true',
+  });
 }

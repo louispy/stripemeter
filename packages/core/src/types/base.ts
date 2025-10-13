@@ -90,6 +90,26 @@ export interface ReconciliationReport {
   createdAt: string;
 }
 
+export interface AdjustmentRecord {
+  id: string;
+  tenantId: TenantID;
+  metric: string;
+  customerRef: string;
+  periodStart: string;
+  delta: number;
+  reason: 'backfill' | 'correction' | 'promo' | 'credit' | 'manual';
+  actor: string;
+  status: 'pending' | 'approved' | 'reverted';
+  approvedBy?: string | null;
+  approvedAt?: string | null;
+  revertedBy?: string | null;
+  revertedAt?: string | null;
+  parentAdjustmentId?: string | null;
+  requestId?: string | null;
+  note?: string | null;
+  createdAt: string;
+}
+
 export interface AlertConfig {
   id: string;
   tenantId: TenantID;

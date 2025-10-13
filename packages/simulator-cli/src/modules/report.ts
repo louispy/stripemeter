@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs';
 import * as path from 'path';
 import { ScenarioSchema } from './schema';
+import { compareInvoices, formatDifferences } from '@stripemeter/core';
 
 interface ReportOptions {
   scenario?: string;
@@ -24,12 +25,7 @@ type ScenarioDiff = {
   diffs: string[];
 };
 
-function approxEqual(a: number, b: number, abs = 0, rel = 0): boolean {
-  const diff = Math.abs(a - b);
-  if (diff <= abs) return true;
-  const denom = Math.max(1, Math.abs(b));
-  return diff / denom <= rel;
-}
+// Numeric comparison now handled by core assertions
 
 async function readJson(filePath: string): Promise<any> {
   const raw = await fs.readFile(filePath, 'utf8');
@@ -140,27 +136,13 @@ export async function runReport(opts: ReportOptions): Promise<number> {
     try {
       const scenarioRaw = await readJson(scenarioPath);
       const parsedScenario = ScenarioSchema.safeParse(scenarioRaw);
-      const absTol = parsedScenario.success && parsedScenario.data.tolerances?.absolute !== undefined
-        ? parsedScenario.data.tolerances.absolute!
-        : 0.001;
-      const relTol = parsedScenario.success && parsedScenario.data.tolerances?.relative !== undefined
-        ? parsedScenario.data.tolerances.relative!
-        : 0.0005;
-
       const expected: Invoice = await readJson(expectedPath);
       const actual: Invoice = await readJson(resultPath);
 
-      const diffs: string[] = [];
-      if (!approxEqual(actual.total, expected.total, absTol, relTol)) {
-        diffs.push(`total: expected ${expected.total}, got ${actual.total}`);
-      }
-      if (expected.subtotal !== undefined && actual.subtotal !== undefined && !approxEqual(actual.subtotal, expected.subtotal, absTol, relTol)) {
-        diffs.push(`subtotal: expected ${expected.subtotal}, got ${actual.subtotal}`);
-      }
-      if (expected.tax !== undefined && actual.tax !== undefined && !approxEqual(actual.tax, expected.tax, absTol, relTol)) {
-        diffs.push(`tax: expected ${expected.tax}, got ${actual.tax}`);
-      }
-
+      const comp = compareInvoices(actual as any, expected as any, {
+        tolerances: parsedScenario.success ? parsedScenario.data.tolerances : undefined,
+      });
+      const diffs = formatDifferences(comp.differences);
       results.push({ scenario: name, diffs });
       if (diffs.length > 0) hadDiff = true;
     } catch (err: any) {

@@ -6,6 +6,7 @@ import { Worker, Job } from 'bullmq';
 import { db, simulationRuns, simulationBatches, redis } from '@stripemeter/database';
 import { eq, sql, and } from 'drizzle-orm';
 import { InvoiceSimulator } from '@stripemeter/pricing-lib';
+import { compareInvoices, type ComparisonResult } from '@stripemeter/core';
 import { logger } from '../utils/logger';
 
 interface SimulationJobData {
@@ -15,15 +16,7 @@ interface SimulationJobData {
   batchId?: string;
 }
 
-interface ComparisonResult {
-  passed: boolean;
-  differences: Array<{
-    field: string;
-    expected: any;
-    actual: any;
-    difference: number;
-  }>;
-}
+// Use ComparisonResult from core assertions
 
 export class SimulationRunnerWorker {
   private worker: Worker | null = null;
@@ -86,7 +79,7 @@ export class SimulationRunnerWorker {
       let passed: boolean | null = null;
 
       if (scenario.expected) {
-        comparison = this.compareResults(result, scenario.expected, scenario.tolerances);
+        comparison = compareInvoices(result, scenario.expected, { tolerances: scenario.tolerances });
         passed = comparison.passed;
       }
 
@@ -165,103 +158,7 @@ export class SimulationRunnerWorker {
     }
   }
 
-  private compareResults(actual: any, expected: any, tolerances?: any): ComparisonResult {
-    const differences: ComparisonResult['differences'] = [];
-    const absoluteTolerance = tolerances?.absolute || 0.01; // Default $0.01
-    const relativeTolerance = tolerances?.relative || 0.001; // Default 0.1%
-
-    // Compare total (most important)
-    if (expected.total !== undefined) {
-      const diff = Math.abs(actual.total - expected.total);
-      const relDiff = expected.total > 0 ? diff / expected.total : diff;
-
-      if (diff > absoluteTolerance && relDiff > relativeTolerance) {
-        differences.push({
-          field: 'total',
-          expected: expected.total,
-          actual: actual.total,
-          difference: diff,
-        });
-      }
-    }
-
-    // Compare subtotal
-    if (expected.subtotal !== undefined) {
-      const diff = Math.abs(actual.subtotal - expected.subtotal);
-      const relDiff = expected.subtotal > 0 ? diff / expected.subtotal : diff;
-
-      if (diff > absoluteTolerance && relDiff > relativeTolerance) {
-        differences.push({
-          field: 'subtotal',
-          expected: expected.subtotal,
-          actual: actual.subtotal,
-          difference: diff,
-        });
-      }
-    }
-
-    // Compare tax
-    if (expected.tax !== undefined) {
-      const diff = Math.abs(actual.tax - expected.tax);
-      const relDiff = expected.tax > 0 ? diff / expected.tax : diff;
-
-      if (diff > absoluteTolerance && relDiff > relativeTolerance) {
-        differences.push({
-          field: 'tax',
-          expected: expected.tax,
-          actual: actual.tax,
-          difference: diff,
-        });
-      }
-    }
-
-    // Compare line items if provided
-    if (expected.lineItems && Array.isArray(expected.lineItems)) {
-      for (const expectedItem of expected.lineItems) {
-        const actualItem = actual.lineItems.find((item: any) => item.metric === expectedItem.metric);
-
-        if (!actualItem) {
-          differences.push({
-            field: `lineItem.${expectedItem.metric}`,
-            expected: expectedItem,
-            actual: null,
-            difference: -1,
-          });
-          continue;
-        }
-
-        // Compare line item subtotal
-        if (expectedItem.subtotal !== undefined) {
-          const diff = Math.abs(actualItem.subtotal - expectedItem.subtotal);
-          const relDiff = expectedItem.subtotal > 0 ? diff / expectedItem.subtotal : diff;
-
-          if (diff > absoluteTolerance && relDiff > relativeTolerance) {
-            differences.push({
-              field: `lineItem.${expectedItem.metric}.subtotal`,
-              expected: expectedItem.subtotal,
-              actual: actualItem.subtotal,
-              difference: diff,
-            });
-          }
-        }
-
-        // Compare line item quantity
-        if (expectedItem.quantity !== undefined && actualItem.quantity !== expectedItem.quantity) {
-          differences.push({
-            field: `lineItem.${expectedItem.metric}.quantity`,
-            expected: expectedItem.quantity,
-            actual: actualItem.quantity,
-            difference: Math.abs(actualItem.quantity - expectedItem.quantity),
-          });
-        }
-      }
-    }
-
-    return {
-      passed: differences.length === 0,
-      differences,
-    };
-  }
+  // Comparison now handled by core assertions
 
   private async updateBatchStatus(batchId: string, tenantId: string) {
     // Get all runs for this batch

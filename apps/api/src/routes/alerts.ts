@@ -4,6 +4,8 @@
 
 import { FastifyPluginAsync } from 'fastify';
 import type { AlertConfig } from '@stripemeter/core';
+import { requireScopes } from '../utils/auth';
+import { SCOPES } from '../constants/scopes';
 
 export const alertsRoutes: FastifyPluginAsync = async (server) => {
   /**
@@ -50,6 +52,7 @@ export const alertsRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
+    preHandler: requireScopes(SCOPES.PROJECT_READ, SCOPES.ALERTS_READ),
   }, async (_request, reply) => {
     // TODO: Implement alert retrieval from database
     reply.send([]);
@@ -97,6 +100,7 @@ export const alertsRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
+    preHandler: requireScopes(SCOPES.PROJECT_WRITE, SCOPES.ALERTS_WRITE),
   }, async (request, reply) => {
     // TODO: Implement alert creation
     const alertConfig: AlertConfig = {
@@ -135,6 +139,7 @@ export const alertsRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
+    preHandler: requireScopes(SCOPES.PROJECT_WRITE, SCOPES.ALERTS_WRITE),
   }, async (_request, reply) => {
     // TODO: Implement alert update
     reply.status(501).send({ 
@@ -166,6 +171,7 @@ export const alertsRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
+    preHandler: requireScopes(SCOPES.PROJECT_WRITE, SCOPES.ALERTS_WRITE),
   }, async (_request, reply) => {
     // TODO: Implement alert deletion
     reply.status(204).send();
@@ -221,6 +227,7 @@ export const alertsRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
+    preHandler: requireScopes(SCOPES.PROJECT_READ, SCOPES.ALERTS_READ),
   }, async (_request, reply) => {
     // TODO: Implement alert history retrieval
     reply.send([]);

@@ -141,7 +141,8 @@ export class AggregatorWorker {
             eq(adjustments.tenantId, tenantId),
             eq(adjustments.metric, metric),
             eq(adjustments.customerRef, customerRef),
-            eq(adjustments.periodStart, periodStart)
+            eq(adjustments.periodStart, periodStart),
+            eq(adjustments.status as any, 'approved' as any)
           )
         );
 

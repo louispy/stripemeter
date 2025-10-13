@@ -17,6 +17,8 @@ import {
 import { Queue } from 'bullmq';
 import { warnIfNonUuidTenantId } from '../utils/logger';
 import { eventsIngestedTotal, ingestLatencyMs } from '../utils/metrics';
+import { requireScopes, verifyTenantId } from '../utils/auth';
+import { SCOPES } from '../constants/scopes';
 
 export const eventsRoutes: FastifyPluginAsync = async (server) => {
   // Lazily import database to play well with test mocks
@@ -73,9 +75,30 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
     Body: IngestEventRequestInput;
     Reply: IngestEventResponse;
   }>('/ingest', {
+    bodyLimit: parseInt(process.env.INGEST_BODY_LIMIT_BYTES || '1048576', 10),
     schema: {
       description: 'Ingest a batch of usage events',
       tags: ['events'],
+      body: {
+        type: 'object',
+        required: ['events'],
+        properties: {
+          events: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                metric: { type: 'string' },
+                tenantId: { type: 'string' },
+                customerRef: { type: 'string' },
+                quantity: { type: 'number' },
+                ts: { type: 'string', format: 'date-time' },
+                source: { type: 'string' },
+              },
+            }
+          },
+        },
+      },
       headers: {
         type: 'object',
         properties: {
@@ -117,8 +140,30 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
             },
           },
         },
+        401: {
+          type: 'object',
+          properties: {
+            error: { type: 'string' },
+          },
+          example: {
+            error: 'Missing API Key',
+          },
+        },
+        403: {
+          type: 'object',
+          properties: {
+            error: { type: 'string' },
+          },
+          example: {
+            error: 'Mismatched tenantId in events',
+          },
+        },
       },
     },
+    preHandler: [
+      requireScopes(SCOPES.PROJECT_WRITE, SCOPES.EVENTS_WRITE),
+      verifyTenantId('events'),
+    ],
   }, async (request, reply) => {
     const ingestStart = process.hrtime.bigint();
     // Validate request body
@@ -136,6 +181,15 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
     }
 
     const { events: eventBatch } = validationResult.data;
+    const maxBatch = parseInt(process.env.MAX_INGEST_BATCH || '1000', 10);
+    if (eventBatch.length > maxBatch) {
+      return reply.status(400).send({
+        accepted: 0,
+        duplicates: 0,
+        requestId: request.id,
+        errors: [{ index: -1, error: `Batch too large: ${eventBatch.length} > ${maxBatch}` }],
+      });
+    }
     const errors: Array<{ index: number; error: string }> = [];
     const results: Array<{ idempotencyKey: string; status: 'accepted' | 'duplicate' | 'error'; error?: string }> = [];
     const eventsToInsert = [];
@@ -147,6 +201,7 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
       : (headerIdempotencyKeyRaw as string | undefined);
 
     // Process each event
+    const maxMetaBytes = parseInt(process.env.MAX_EVENT_META_BYTES || '4096', 10);
     for (let i = 0; i < eventBatch.length; i++) {
       const event = eventBatch[i];
 
@@ -172,6 +227,16 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
           });
           results.push({ idempotencyKey, status: 'error', error: 'Event timestamp too far in the future' });
           continue;
+        }
+
+        // Optional meta size cap
+        if (event.meta) {
+          const metaLen = Buffer.byteLength(typeof event.meta === 'string' ? event.meta : JSON.stringify(event.meta));
+          if (metaLen > maxMetaBytes) {
+            errors.push({ index: i, error: `Meta too large (${metaLen} bytes > ${maxMetaBytes})` });
+            results.push({ idempotencyKey, status: 'error', error: 'Meta too large' });
+            continue;
+          }
         }
 
         eventsToInsert.push({
@@ -282,6 +347,7 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
     Body: BackfillRequestInput;
     Reply: any;
   }>('/backfill', {
+    bodyLimit: parseInt(process.env.BACKFILL_BODY_LIMIT_BYTES || '1048576', 10),
     schema: {
       description: 'Backfill historical usage events',
       tags: ['events'],
@@ -296,6 +362,7 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
           periodEnd: { type: 'string', format: 'date' },
           events: { type: 'array' },
           csvData: { type: 'string' },
+          sourceUrl: { type: 'string' },
           reason: { type: 'string' },
         },
       },
@@ -317,6 +384,7 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
+    preHandler: requireScopes(SCOPES.PROJECT_WRITE, SCOPES.EVENTS_WRITE),
   }, async (request, reply) => {
     // Validate request body
     const validationResult = backfillRequestSchema.safeParse(request.body);
@@ -327,13 +395,24 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
       });
     }
 
-    const { tenantId, metric, customerRef, periodStart, periodEnd, events, csvData, reason } = validationResult.data;
+    const { tenantId, metric, customerRef, periodStart, periodEnd, events, csvData, reason, sourceUrl } = validationResult.data;
+
+    // Enforce max backfill events if using JSON events
+    if (events && events.length) {
+      const maxBackfillEvents = parseInt(process.env.MAX_BACKFILL_EVENTS || '5000', 10);
+      if (events.length > maxBackfillEvents) {
+        return reply.status(400).send({
+          error: 'Validation Error',
+          message: `Too many events: ${events.length} > ${maxBackfillEvents}`,
+        });
+      }
+    }
 
     try {
       // Determine source type and data
       let sourceType: 'json' | 'csv' | 'api';
       let sourceData: string | undefined;
-      let sourceUrl: string | undefined;
+      let resolvedSourceUrl: string | undefined;
 
       if (events && events.length > 0) {
         sourceType = 'json';
@@ -341,6 +420,9 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
       } else if (csvData) {
         sourceType = 'csv';
         sourceData = csvData;
+      } else if (sourceUrl) {
+        sourceType = 'csv';
+        resolvedSourceUrl = sourceUrl;
       } else {
         return reply.status(400).send({
           error: 'Invalid Request',
@@ -350,14 +432,14 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
 
       // For large data, we could upload to S3/MinIO here
       // For now, we'll store small data directly
-      const dataSize = sourceData.length;
+      const dataSize = sourceData?.length ?? 0;
       const maxDirectSize = parseInt(process.env.MAX_DIRECT_BACKFILL_SIZE || '1048576', 10); // 1MB default
 
-      if (dataSize > maxDirectSize) {
-        // TODO: Implement S3/MinIO upload for large data
+      // If data is large and S3 env present, instruct worker to load via S3 (future upload site handled by client/tools)
+      if (!resolvedSourceUrl && sourceData && dataSize > maxDirectSize) {
         return reply.status(413).send({
           error: 'Payload Too Large',
-          message: `Data size (${dataSize} bytes) exceeds maximum direct size (${maxDirectSize} bytes). S3/MinIO upload not yet implemented.`,
+          message: `Data size (${dataSize} bytes) exceeds maximum direct size (${maxDirectSize} bytes). Provide sourceUrl (s3://...) when using large CSV.`,
         });
       }
 
@@ -373,7 +455,7 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
         actor: 'api:backfill', // TODO: Extract from auth context
         sourceType,
         sourceData,
-        sourceUrl,
+        sourceUrl: resolvedSourceUrl,
         metadata: {
           requestId: request.id,
           userAgent: request.headers['user-agent'],
@@ -392,7 +474,7 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
           periodEnd: periodEnd || periodStart,
           sourceType,
           sourceData,
-          sourceUrl,
+          sourceUrl: resolvedSourceUrl,
           reason,
           actor: 'api:backfill',
         }, {
@@ -472,12 +554,13 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
+    preHandler: requireScopes(SCOPES.PROJECT_READ, SCOPES.EVENTS_READ),
   }, async (request, reply) => {
     const { operationId } = request.params;
 
     try {
       const operation = await backfillRepo.getById(operationId);
-      
+
       if (!operation) {
         return reply.status(404).send({
           error: 'Not Found',
@@ -556,6 +639,7 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
+    preHandler: requireScopes(SCOPES.PROJECT_READ, SCOPES.EVENTS_READ),
   }, async (request, reply) => {
     try {
       const operations = await backfillRepo.list({
@@ -631,7 +715,7 @@ export const eventsRoutes: FastifyPluginAsync = async (server) => {
         },
       },
     },
-
+    preHandler: requireScopes(SCOPES.PROJECT_READ, SCOPES.EVENTS_READ),
   }, async (_request, reply) => {
     const validationResult = getEventsQuerySchema.safeParse(_request.query);
     if (!validationResult.success) {

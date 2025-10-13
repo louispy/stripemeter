@@ -12,11 +12,24 @@ import { SimulationRunnerWorker } from './workers/simulation-runner';
 import { BackfillWorker } from './workers/backfill';
 import { redis } from '@stripemeter/database';
 import { startWorkerHttpServer } from './http';
+import * as Sentry from '@sentry/node';
 
 async function start() {
   logger.info('🚀 Starting Stripemeter workers...');
 
   try {
+    // Initialize Sentry if configured
+    try {
+      const dsn = process.env.SENTRY_DSN;
+      if (dsn) {
+        Sentry.init({
+          dsn,
+          environment: process.env.NODE_ENV || 'development',
+          release: process.env.GIT_SHA || process.env.RELEASE || undefined,
+          tracesSampleRate: Number(process.env.SENTRY_TRACES_SAMPLE_RATE || '0'),
+        });
+      }
+    } catch {}
     // Initialize workers
     const aggregator = new AggregatorWorker();
     const stripeWriter = new StripeWriterWorker();

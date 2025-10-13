@@ -10,6 +10,7 @@ import { generateStripeIdempotencyKey, generateDeterministicStripeIdempotencyKey
 import { backOff } from 'exponential-backoff';
 import pLimit from 'p-limit';
 import { shadowUsagePostsTotal, shadowUsagePostFailuresTotal } from '../utils/metrics';
+import CircuitBreaker from 'opossum';
 
 export class StripeWriterWorker {
   private stripeLive: Stripe;
@@ -17,6 +18,7 @@ export class StripeWriterWorker {
   private intervalId: NodeJS.Timeout | null = null;
   private isRunning = false;
   private rateLimiter: Map<string, any> = new Map();
+  private breakers: Map<string, CircuitBreaker<any, any>> = new Map();
 
   constructor() {
     this.stripeLive = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
@@ -214,44 +216,62 @@ export class StripeWriterWorker {
         });
 
     try {
-      // Push to Stripe with exponential backoff
-      await backOff(
-        async () => {
+      // Circuit breaker per stripeAccount
+      const breakerKey = `${effectiveStripeAccount || 'default'}:createUsageRecord`;
+      let breaker = this.breakers.get(breakerKey);
+      if (!breaker) {
+        breaker = new CircuitBreaker(async () => {
           const deterministicTimestampSec = Math.floor(new Date(periodStart).getTime() / 1000);
           const usageRecord = await targetStripe.subscriptionItems.createUsageRecord(
             effectiveSubscriptionItemId!,
             {
-              quantity: Math.round(localTotal), // Stripe requires integer for most prices
+              quantity: Math.round(localTotal),
               timestamp: deterministicTimestampSec,
-              action: 'set', // Set total, not increment
+              action: 'set',
             },
             {
               idempotencyKey,
               stripeAccount: effectiveStripeAccount !== 'default' ? effectiveStripeAccount : undefined,
             }
           );
-
-          logger.info(`Successfully pushed usage record ${usageRecord.id} for ${subscriptionItemId}`);
-          if (isShadow) {
-            shadowUsagePostsTotal.inc({ tenant: tenantId, metric: mapping.metric }, 1);
-          }
           return usageRecord;
-        },
+        }, {
+          timeout: Number(process.env.STRIPE_CB_TIMEOUT_MS || '10000'),
+          errorThresholdPercentage: Number(process.env.STRIPE_CB_ERROR_THRESHOLD_PCT || '50'),
+          resetTimeout: Number(process.env.STRIPE_CB_RESET_TIMEOUT_MS || '30000'),
+          rollingCountTimeout: Number(process.env.STRIPE_CB_ROLLING_MS || '60000'),
+          rollingCountBuckets: 6,
+          volumeThreshold: Number(process.env.STRIPE_CB_VOLUME_THRESHOLD || '5'),
+        });
+        breaker.on('open', () => logger.warn(`Stripe circuit breaker OPEN for ${breakerKey}`));
+        breaker.on('halfOpen', () => logger.warn(`Stripe circuit breaker HALF-OPEN for ${breakerKey}`));
+        breaker.on('close', () => logger.info(`Stripe circuit breaker CLOSED for ${breakerKey}`));
+        this.breakers.set(breakerKey, breaker);
+      }
+
+      // Execute inside an exponential backoff to mitigate transient errors
+      const usageRecord = await backOff(
+        async () => breaker!.fire(),
         {
           numOfAttempts: 5,
           startingDelay: 1000,
           timeMultiple: 2,
           maxDelay: 30000,
           retry: (error: any) => {
-            // Retry on rate limit or temporary errors
-            if (error?.statusCode === 429 || error?.statusCode >= 500) {
-              logger.warn(`Retrying Stripe request due to ${error.statusCode} error`);
-              return true;
+            if (error?.code === 'EOPENBREAKER') {
+              logger.warn(`Breaker open for ${breakerKey}, skipping attempt`);
+              return true; // keep backoff to give time for half-open
             }
+            if (error?.statusCode === 429 || error?.statusCode >= 500) return true;
             return false;
           },
         }
       );
+
+      logger.info(`Successfully pushed usage record ${usageRecord.id} for ${subscriptionItemId}`);
+      if (isShadow) {
+        shadowUsagePostsTotal.inc({ tenant: tenantId, metric: mapping.metric }, 1);
+      }
 
       // Update write log only for live mode
       if (!isShadow && writeLogRow) {
