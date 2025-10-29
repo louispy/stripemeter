@@ -4,6 +4,7 @@ import { projects } from './schema/projects';
 import { apiKeys } from './schema/api-keys';
 import { orgMembers } from './schema/roles';
 import { randomBytes, createHmac } from 'crypto';
+import { simulationScenarios } from './schema/simulations';
 
 async function main() {
   const orgId = cryptoRandomUuid();
@@ -18,6 +19,32 @@ async function main() {
 
   // Demo org member
   await db.insert(orgMembers).values({ organisationId: orgId, userId: cryptoRandomUuid(), role: 'owner' }).onConflictDoNothing();
+
+  // Seed a minimal simulation scenario for the demo project/tenant
+  await db.insert(simulationScenarios).values({
+    tenantId: projectId,
+    name: 'Demo Tiered Pricing',
+    description: 'Seeded demo scenario',
+    version: '1',
+    tags: ['demo'],
+    model: { model: 'tiered', currency: 'USD', tiers: [{ upTo: 1000, unitPrice: 0.1 }, { upTo: null, unitPrice: 0.05 }] },
+    inputs: {
+      customerId: 'demo_customer',
+      periodStart: '2024-01-01',
+      periodEnd: '2024-01-31',
+      usageItems: [
+        { metric: 'api_calls', quantity: 3500, priceConfig: { model: 'tiered', currency: 'USD', tiers: [{ upTo: 1000, unitPrice: 0.1 }, { upTo: null, unitPrice: 0.05 }] } },
+      ],
+      commitments: [],
+      credits: [],
+      taxRate: 0,
+    },
+    expected: { total: 260.0, subtotal: 260.0, tax: 0 },
+    tolerances: { absolute: 0.01, relative: 0.001 },
+    active: true,
+    createdBy: 'seed',
+    updatedBy: 'seed',
+  }).onConflictDoNothing();
 
   console.log('Seed complete. Demo API key:', apiKey);
 }
