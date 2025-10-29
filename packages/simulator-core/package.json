@@ -1,12 +1,8 @@
 {
-  "name": "@stripemeter/simulator-cli",
+  "name": "@stripemeter/simulator-core",
   "version": "0.1.0",
-  "description": "Simulator CLI to run, validate, and report on pricing scenarios",
+  "description": "Simulator core: Scenario DSL schema, parser, and deterministic runner",
   "private": true,
-  "bin": {
-    "sim": "./dist/index.js",
-    "stripemeter-sim": "./dist/index.js"
-  },
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -26,11 +22,11 @@
   },
   "dependencies": {
     "@stripemeter/pricing-lib": "workspace:*",
-    "@stripemeter/simulator-core": "workspace:*",
-    "commander": "^11.1.0",
+    "js-yaml": "^4.1.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.11.0",
     "tsup": "^8.0.1",
     "typescript": "^5.3.3",
