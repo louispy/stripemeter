@@ -6,7 +6,8 @@
     "baseUrl": "../../",
     "paths": {
       "@stripemeter/pricing-lib": ["packages/pricing-lib/dist"],
-      "@stripemeter/core": ["packages/core/dist"]
+      "@stripemeter/core": ["packages/core/dist"],
+      "@stripemeter/simulator-core": ["packages/simulator-core/dist"]
     }
   },
   "include": ["src"]

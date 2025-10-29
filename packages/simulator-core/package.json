@@ -14,7 +14,7 @@
     }
   },
   "scripts": {
-    "build": "tsc --emitDeclarationOnly -p tsconfig.json && tsup",
+    "build": "tsup && tsc --emitDeclarationOnly -p tsconfig.json",
     "dev": "tsup --watch",
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit",
