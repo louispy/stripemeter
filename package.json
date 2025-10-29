@@ -18,6 +18,7 @@
     "clean": "pnpm run --filter './packages/*' --filter './apps/*' clean",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
+    "bootstrap": "pnpm -r build && pnpm db:migrate && pnpm db:seed",
     "db:migrate": "pnpm --filter @stripemeter/database migrate",
     "db:seed": "pnpm --filter @stripemeter/database seed",
     "typecheck": "pnpm -r --workspace-concurrency=1 run typecheck",
