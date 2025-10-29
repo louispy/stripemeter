@@ -31,7 +31,8 @@ See [v0.4.0 Release Notes](docs/RELEASE_NOTES_v0.4.0.md) and [Operator Runbook](
 
 ```bash
 git clone https://github.com/geminimir/stripemeter && cd stripemeter
-cp .env.example .env && docker compose up -d && pnpm -r build && pnpm dev
+cp .env.example .env && docker compose up -d && pnpm -r build
+pnpm db:migrate && pnpm dev
 curl -fsS http://localhost:3000/health/ready | jq . || true
 TENANT_ID=$(uuidgen 2>/dev/null || cat /proc/sys/kernel/random/uuid) bash examples/api-calls/send.sh
 curl -fsS http://localhost:3000/metrics | head -n 30  # duplicate counted once
@@ -69,6 +70,7 @@ pnpm i -w
 cp .env.example .env
 docker compose up -d
 pnpm -r build
+pnpm db:migrate
 pnpm dev
 ```
 
