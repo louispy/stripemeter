@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs';
 import * as path from 'path';
-import { ScenarioSchema } from './schema';
+import { ScenarioSchema } from '@stripemeter/simulator-core';
 import { compareInvoices, formatDifferences } from '@stripemeter/core';
 
 interface ReportOptions {

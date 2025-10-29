@@ -24,7 +24,8 @@
       "@stripemeter/core": ["./packages/core/src"],
       "@stripemeter/database": ["./packages/database/src"],
       "@stripemeter/pricing-lib": ["./packages/pricing-lib/src"],
-      "@stripemeter/sdk-node": ["./packages/sdk-node/src"]
+      "@stripemeter/sdk-node": ["./packages/sdk-node/src"],
+      "@stripemeter/simulator-core": ["./packages/simulator-core/src"]
     }
   },
   "exclude": ["node_modules", "dist", "build", "coverage"]

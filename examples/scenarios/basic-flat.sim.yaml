@@ -1,0 +1,18 @@
+metadata:
+  name: Basic Flat 1000
+  description: Simple flat pricing example
+inputs:
+  customerId: demo_customer
+  periodStart: '2024-01-01'
+  periodEnd: '2024-01-31'
+  usageItems:
+    - metric: api_calls
+      quantity: 1000
+      priceConfig:
+        model: flat
+        currency: USD
+        unitPrice: 0.01
+expected:
+  total: 10
+
+

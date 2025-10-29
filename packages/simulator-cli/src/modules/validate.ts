@@ -1,6 +1,5 @@
-import { promises as fs } from 'fs';
-import * as path from 'path';
-import { ScenarioSchema } from './schema';
+import { ScenarioSchema } from '@stripemeter/simulator-core';
+import { collectScenarioFiles, loadScenarioFile } from '@stripemeter/simulator-core';
 
 interface ValidateOptions {
   scenario?: string;
@@ -9,20 +8,7 @@ interface ValidateOptions {
 
 export async function runValidate(opts: ValidateOptions): Promise<number> {
   const targets: string[] = [];
-
-  if (opts.scenario) {
-    targets.push(path.resolve(process.cwd(), opts.scenario));
-  }
-
-  if (opts.dir) {
-    const dirPath = path.resolve(process.cwd(), opts.dir);
-    const items = await fs.readdir(dirPath);
-    for (const item of items) {
-      if (item.endsWith('.sim.json')) {
-        targets.push(path.join(dirPath, item));
-      }
-    }
-  }
+  targets.push(...(await collectScenarioFiles(opts)));
 
   if (targets.length === 0) {
     console.error('No scenario provided. Use --scenario <file> or --dir <directory>.');
@@ -33,9 +19,8 @@ export async function runValidate(opts: ValidateOptions): Promise<number> {
 
   for (const file of targets) {
     try {
-      const raw = await fs.readFile(file, 'utf8');
-      const json = JSON.parse(raw);
-      const result = ScenarioSchema.safeParse(json);
+      const parsed = await loadScenarioFile(file);
+      const result = ScenarioSchema.safeParse(parsed);
       if (!result.success) {
         hadError = true;
         console.error(`Validation failed for ${file}:`);
