@@ -4,7 +4,15 @@
     "rootDir": "src",
     "outDir": "dist",
     "composite": false,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "moduleResolution": "node",
+    "types": ["node"],
+    "emitDecoratorMetadata": false,
+    "experimentalDecorators": false,
+    "paths": {
+      "@stripemeter/pricing-lib": ["./packages/pricing-lib/dist"],
+      "@stripemeter/core": ["./packages/core/dist"]
+    }
   },
   "include": ["src"]
 }
