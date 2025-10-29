@@ -3,7 +3,7 @@
  */
 
 import { Worker, Job } from 'bullmq';
-import { db, simulationRuns, simulationBatches, redis } from '@stripemeter/database';
+import { db, simulationRuns, simulationBatches, simulationAssertions, redis } from '@stripemeter/database';
 import { eq, sql, and } from 'drizzle-orm';
 import { InvoiceSimulator } from '@stripemeter/pricing-lib';
 import { compareInvoices, type ComparisonResult } from '@stripemeter/core';
@@ -81,6 +81,21 @@ export class SimulationRunnerWorker {
       if (scenario.expected) {
         comparison = compareInvoices(result, scenario.expected, { tolerances: scenario.tolerances });
         passed = comparison.passed;
+      }
+
+      // Persist granular assertions if present
+      if (comparison && Array.isArray(comparison.differences) && comparison.differences.length > 0) {
+        const rows = comparison.differences.map((d) => ({
+          runId,
+          field: d.field,
+          expected: d.expected as any,
+          actual: d.actual as any,
+          difference: typeof d.difference === 'number' ? String(d.difference) : null,
+          passed: false,
+        }));
+        if (rows.length > 0) {
+          await db.insert(simulationAssertions).values(rows as any);
+        }
       }
 
       // Update run with results

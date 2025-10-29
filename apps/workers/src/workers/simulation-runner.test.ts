@@ -15,9 +15,11 @@ vi.mock('@stripemeter/database', () => ({
     where: vi.fn().mockReturnThis(),
     select: vi.fn().mockReturnThis(),
     from: vi.fn().mockReturnThis(),
+    insert: vi.fn().mockReturnThis(),
   },
   simulationRuns: {},
   simulationBatches: {},
+  simulationAssertions: {},
   redis: {
     ping: vi.fn(),
   },
