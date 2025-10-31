@@ -73,7 +73,7 @@ export const alertStates = pgTable('alert_states', {
   customerRef: text('customer_ref'),
   alertConfigId: uuid('alert_config_id'),
   status: text('status', {
-    enum: ['triggered', 'acknowledged', 'resolved']
+    enum: ['triggered', 'acknowledged', 'resolved', 'snoozed']
   }).notNull().default('triggered'),
   severity: text('severity', { 
     enum: ['info', 'warn', 'critical'] 
@@ -101,7 +101,7 @@ export const alertStates = pgTable('alert_states', {
 // Alert events for tracking triggered alerts
 export const alertEvents = pgTable('alert_events', {
   id: uuid('id').primaryKey().defaultRandom(),
-  alertConfigId: uuid('alert_config_id').notNull().references(() => alertConfigs.id),
+  alertConfigId: uuid('alert_config_id'),
   tenantId: uuid('tenant_id').notNull(),
   customerRef: text('customer_ref'),
   metric: text('metric'),
@@ -109,7 +109,7 @@ export const alertEvents = pgTable('alert_events', {
   threshold: numeric('threshold', { precision: 20, scale: 6 }).notNull(),
   action: text('action').notNull(),
   status: text('status', {
-    enum: ['triggered', 'acknowledged', 'resolved']
+    enum: ['triggered', 'acknowledged', 'resolved', 'snoozed']
   }).notNull().default('triggered'),
   metadata: jsonb('metadata').notNull().default({}),
   triggeredAt: timestamp('triggered_at', { withTimezone: true }).notNull().defaultNow(),

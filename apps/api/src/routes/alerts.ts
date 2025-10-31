@@ -13,7 +13,7 @@ import {
   alertHistory,
   alertEvents,
 } from "@stripemeter/database";
-import { and, eq, gte } from "drizzle-orm";
+import { and, eq, gte, sql } from "drizzle-orm";
 
 export const alertsRoutes: FastifyPluginAsync = async (server) => {
   /**
@@ -443,7 +443,8 @@ export const alertsRoutes: FastifyPluginAsync = async (server) => {
       const res = await db
         .select()
         .from(alertEvents)
-        .where(and(...params));
+        .where(and(...params))
+        .orderBy(sql`${alertEvents.triggeredAt} DESC`);
       reply.status(200).send(res);
     }
   );
