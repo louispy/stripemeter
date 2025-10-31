@@ -173,7 +173,11 @@ export const alertStatesRoutes: FastifyPluginAsync = async (server) => {
    * Create a new alert state
    */
   server.post<{
-    Body: Omit<AlertState, "id">;
+    Body: Omit<AlertState, "id"> & {
+      value: number;
+      threshold: number;
+      action: string;
+    };
     Reply: AlertState;
   }>(
     "/",
@@ -189,6 +193,9 @@ export const alertStatesRoutes: FastifyPluginAsync = async (server) => {
             "customerRef",
             "title",
             "alertConfigId",
+            "value",
+            "threshold",
+            "action",
           ],
           properties: {
             tenantId: { type: "string" },
@@ -202,6 +209,9 @@ export const alertStatesRoutes: FastifyPluginAsync = async (server) => {
             },
             title: { type: "string" },
             description: { type: "string" },
+            value: { type: "number" },
+            threshold: { type: "number" },
+            action: { type: "string" },
           },
         },
         response: {
@@ -236,13 +246,13 @@ export const alertStatesRoutes: FastifyPluginAsync = async (server) => {
       await db.transaction(async (tx) => {
         await tx.insert(alertStates).values(alertState);
         await tx.insert(alertEvents).values({
-          alertConfigId: alertState.alertConfigId || "",
+          alertConfigId: alertState.alertConfigId || null,
           tenantId: alertState.tenantId,
           customerRef: alertState.customerRef || "",
           metric: alertState.metric,
-          value: "0",
-          threshold: "0",
-          action: "",
+          value: request.body.value.toString(),
+          threshold: request.body.threshold.toString(),
+          action: request.body.action,
           status: "triggered",
           triggeredAt: now,
         });
