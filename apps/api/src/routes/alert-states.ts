@@ -10,7 +10,13 @@ import {
 } from "@stripemeter/core";
 import { requireScopes } from "../utils/auth";
 import { SCOPES } from "../constants/scopes";
-import { AlertState } from "@stripemeter/database";
+import {
+  alertEvents,
+  AlertState,
+  alertStates,
+  db,
+} from "@stripemeter/database";
+import { eq } from "drizzle-orm";
 
 export const alertStatesRoutes: FastifyPluginAsync = async (server) => {
   // lazy import
@@ -138,8 +144,8 @@ export const alertStatesRoutes: FastifyPluginAsync = async (server) => {
       };
 
       const [alertStates, count] = await Promise.all([
-        alertStatesRepo.getEventsByParam(param),
-        alertStatesRepo.getEventsCountByParam(param),
+        alertStatesRepo.getAlertStatesByParam(param),
+        alertStatesRepo.getAlertStatesCountByParam(param),
       ]);
 
       const res: GetAlertStatesResponse = {
@@ -189,11 +195,6 @@ export const alertStatesRoutes: FastifyPluginAsync = async (server) => {
             customerRef: { type: "string" },
             alertConfigId: { type: "string", format: "uuid" },
             metric: { type: "string" },
-            status: {
-              type: "string",
-              enum: ["triggered", "acknowledged", "resolved"],
-              default: "triggered",
-            },
             severity: {
               type: "string",
               enum: ["info", "warn", "critical"],
@@ -225,11 +226,27 @@ export const alertStatesRoutes: FastifyPluginAsync = async (server) => {
       preHandler: requireScopes(SCOPES.PROJECT_WRITE, SCOPES.ALERTS_WRITE),
     },
     async (request, reply) => {
+      const now = new Date();
       const alertState: AlertState = {
-        id: crypto.randomUUID(),
         ...request.body,
+        id: crypto.randomUUID(),
+        createdAt: now,
       };
-      await alertStatesRepo.create(alertState);
+
+      await db.transaction(async (tx) => {
+        await tx.insert(alertStates).values(alertState);
+        await tx.insert(alertEvents).values({
+          alertConfigId: alertState.alertConfigId || "",
+          tenantId: alertState.tenantId,
+          customerRef: alertState.customerRef || "",
+          metric: alertState.metric,
+          value: "0",
+          threshold: "0",
+          action: "",
+          status: "triggered",
+          triggeredAt: now,
+        });
+      });
       reply.status(201).send(alertState);
     }
   );
@@ -268,16 +285,22 @@ export const alertStatesRoutes: FastifyPluginAsync = async (server) => {
 
   /**
    * PUT /v1/alerts/states/:id
-   * Update an alert state
+   * Update an alert state's status
    */
   server.put<{
     Params: { id: string };
-    Body: Partial<AlertState>;
+    Body: {
+      status: "triggered" | "acknowledged" | "resolved" | "snoozed";
+      value: number;
+      threshold: string;
+      action: string;
+      metadata: string;
+    };
   }>(
     "/:id",
     {
       schema: {
-        description: "Update an alert state",
+        description: "Update an alert state's status",
         tags: ["alerts"],
         params: {
           type: "object",
@@ -288,18 +311,15 @@ export const alertStatesRoutes: FastifyPluginAsync = async (server) => {
         },
         body: {
           type: "object",
+          required: ["status", "value", "threshold", "action"],
           properties: {
-            tenantId: { type: "string" },
-            customerRef: { type: "string" },
-            alertConfigId: { type: "string", format: "uuid" },
-            metric: { type: "string" },
             status: {
               type: "string",
-              enum: ["triggered", "acknowledged", "resolved"],
+              enum: ["triggered", "acknowledged", "resolved", "snoozed"],
             },
-            severity: { type: "string", enum: ["info", "warn", "critical"] },
-            title: { type: "string" },
-            description: { type: "string" },
+            threshold: { type: "string" },
+            action: { type: "string" },
+            metadata: { type: "string" },
           },
         },
         response: {
@@ -324,7 +344,38 @@ export const alertStatesRoutes: FastifyPluginAsync = async (server) => {
       preHandler: requireScopes(SCOPES.PROJECT_WRITE, SCOPES.ALERTS_WRITE),
     },
     async (_request, reply) => {
-      const res = await alertStatesRepo.update(_request.params.id, _request.body);
+      const alertState: AlertState = await alertStatesRepo.get(
+        _request.params.id
+      );
+      if (!alertState) {
+        return reply.status(404).send({ error: "Not found" });
+      }
+      const status = _request.body.status;
+      let res: AlertState | null = null;
+      await db.transaction(async (tx) => {
+        const now = new Date();
+        const updateRes = await tx
+          .update(alertStates)
+          .set({ status: _request.body.status, updatedAt: now })
+          .where(eq(alertStates.id, _request.params.id))
+          .returning();
+        if (updateRes && updateRes.length) {
+          res = updateRes[0];
+        }
+        await tx.insert(alertEvents).values({
+          alertConfigId: alertState.alertConfigId,
+          tenantId: alertState.tenantId,
+          customerRef: alertState.customerRef,
+          metric: alertState.metric,
+          value: _request.body.value.toString(),
+          threshold: _request.body.threshold,
+          action: _request.body.action,
+          status: alertState.status,
+          metadata: _request.body.metadata,
+          acknowledgedAt: status === "acknowledged" ? now : null,
+          resolvedAt: status === "resolved" ? now : null,
+        });
+      });
       reply.status(200).send(res);
     }
   );
