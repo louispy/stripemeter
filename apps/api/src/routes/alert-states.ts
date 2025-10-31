@@ -17,6 +17,10 @@ import {
   db,
 } from "@stripemeter/database";
 import { eq } from "drizzle-orm";
+import {
+  alertEventsIngestedTotal,
+  alertStateTransitionsTotal,
+} from "../utils/metrics";
 
 export const alertStatesRoutes: FastifyPluginAsync = async (server) => {
   // lazy import
@@ -257,6 +261,9 @@ export const alertStatesRoutes: FastifyPluginAsync = async (server) => {
           triggeredAt: now,
         });
       });
+      try {
+        alertEventsIngestedTotal.labels(alertState.tenantId, "triggered").inc();
+      } catch (_e) {}
       reply.status(201).send(alertState);
     }
   );
@@ -380,12 +387,21 @@ export const alertStatesRoutes: FastifyPluginAsync = async (server) => {
           value: _request.body.value.toString(),
           threshold: _request.body.threshold,
           action: _request.body.action,
-          status: alertState.status,
+          status: _request.body.status,
           metadata: _request.body.metadata,
           acknowledgedAt: status === "acknowledged" ? now : null,
           resolvedAt: status === "resolved" ? now : null,
         });
       });
+
+      try {
+        alertEventsIngestedTotal
+          .labels(alertState.tenantId, _request.body.status)
+          .inc();
+        alertStateTransitionsTotal
+          .labels(alertState.tenantId, _request.body.status)
+          .inc();
+      } catch (_e) {}
       reply.status(200).send(res);
     }
   );
