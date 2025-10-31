@@ -98,6 +98,34 @@ export const alertStates = pgTable('alert_states', {
   };
 });
 
+// Alert events for tracking triggered alerts
+export const alertEvents = pgTable('alert_events', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  alertConfigId: uuid('alert_config_id').notNull().references(() => alertConfigs.id),
+  tenantId: uuid('tenant_id').notNull(),
+  customerRef: text('customer_ref'),
+  metric: text('metric'),
+  value: numeric('value', { precision: 20, scale: 6 }).notNull(),
+  threshold: numeric('threshold', { precision: 20, scale: 6 }).notNull(),
+  action: text('action').notNull(),
+  status: text('status', {
+    enum: ['triggered', 'acknowledged', 'resolved']
+  }).notNull().default('triggered'),
+  metadata: jsonb('metadata').notNull().default({}),
+  triggeredAt: timestamp('triggered_at', { withTimezone: true }).notNull().defaultNow(),
+  acknowledgedAt: timestamp('acknowledged_at', { withTimezone: true }),
+  resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+}, (table) => {
+  return {
+    // Index for tenant queries
+    tenantIdx: index('idx_alert_events_tenant')
+      .on(table.tenantId, table.triggeredAt),
+
+    // Index for status filtering
+    statusIdx: index('idx_alert_events_status')
+      .on(table.status, table.tenantId),
+  };
+});
 
 // Type inference
 export type AlertConfig = typeof alertConfigs.$inferSelect;
@@ -106,3 +134,5 @@ export type AlertHistory = typeof alertHistory.$inferSelect;
 export type NewAlertHistory = typeof alertHistory.$inferInsert;
 export type AlertState = typeof alertStates.$inferSelect;
 export type NewAlertState = typeof alertStates.$inferInsert;
+export type AlertEvent = typeof alertEvents.$inferSelect;
+export type NewAlertEvent = typeof alertEvents.$inferInsert;
